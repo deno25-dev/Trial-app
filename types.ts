@@ -1,4 +1,5 @@
 
+
 export type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d' | '1w';
 
 export interface OhlcData {
@@ -47,4 +48,17 @@ export interface TradeLog {
   volume: number;
   side: 'buy' | 'sell';
   indicators: Record<string, any>; // JSON Column
+}
+
+// --- TELEMETRY / LOGGING SYSTEM ---
+export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'success';
+export type LogCategory = 'UI' | 'Network' | 'Performance' | 'Persistence' | 'Bridge' | 'Database' | 'System';
+
+export interface LogEntry {
+  id: string;
+  timestamp: number;
+  level: LogLevel;
+  category: LogCategory;
+  message: string;
+  details?: any; // Optional JSON object for inspection
 }

@@ -1,5 +1,6 @@
 import { OhlcData, TradeLog } from '../types';
 import { BinaryParser } from '../utils/binaryParser';
+import { Telemetry } from '../utils/telemetry';
 
 // Type definition for Tauri Invoke
 type InvokeArgs = Record<string, unknown>;
@@ -9,6 +10,11 @@ const MOCK_SQLITE_DB: TradeLog[] = [
     { id: 1, timestamp: Date.now() - 100000, symbol: "BTCUSDT", price: 64100, volume: 0.5, side: 'buy', indicators: { rsi: 30 } },
     { id: 2, timestamp: Date.now() - 50000, symbol: "BTCUSDT", price: 64200, volume: 0.1, side: 'sell', indicators: { rsi: 70 } }
 ];
+
+// --- STATE MANAGEMENT FOR SINGLETON/BACKOFF (Mandate 0.9) ---
+let marketOverviewPromise: Promise<any[]> | null = null;
+let marketFailureCount = 0;
+let marketNextRetryTime = 0;
 
 /**
  * THE BRIDGE
@@ -21,15 +27,32 @@ export const TauriService = {
    * Mock Implementation of Tauri's `invoke` function.
    */
   async invoke<T>(command: string, args?: InvokeArgs): Promise<T> {
-    console.debug(`[IPC-OUT] Command: ${command}`, args);
+    const start = performance.now();
     
+    // Log outgoing IPC request
+    Telemetry.debug('Bridge', `IPC Call: ${command}`, args);
+
     await new Promise(resolve => setTimeout(resolve, 150 + Math.random() * 200));
+
+    // Measure Latency
+    const latency = performance.now() - start;
+    if (latency > 300) {
+        Telemetry.warn('Performance', `Slow IPC Response: ${command}`, { latency: `${latency.toFixed(2)}ms` });
+    }
 
     // --- CHARTING COMMANDS ---
     if (command === 'plugin:polars|load_history') {
-        return MockBackend.generateBinaryCandles(args?.symbol as string, args?.interval as string) as unknown as T;
+        const result = MockBackend.generateBinaryCandles(args?.symbol as string, args?.interval as string);
+        Telemetry.success('Bridge', `Loaded History for ${args?.symbol}`, { bytes: result.length });
+        return result as unknown as T;
     }
     if (command === 'get_market_overview') {
+        // Randomly simulate a network failure for telemetry testing (Increased rate for demo of backoff)
+        if (Math.random() < 0.2) {
+             const err = new Error("Connection Reset by Peer");
+             // Log handled in wrapper
+             throw err;
+        }
         return MockBackend.getMarketData() as unknown as T;
     }
 
@@ -41,6 +64,7 @@ export const TauriService = {
         const trade = args?.trade as TradeLog;
         const newId = MOCK_SQLITE_DB.length + 1;
         MOCK_SQLITE_DB.push({ ...trade, id: newId });
+        Telemetry.info('Database', 'Trade Inserted', { id: newId, symbol: trade.symbol });
         return newId as unknown as T;
     }
     if (command === 'db_get_trades') {
@@ -48,18 +72,75 @@ export const TauriService = {
         return MOCK_SQLITE_DB.filter(t => t.symbol === symbol) as unknown as T;
     }
 
-    throw new Error(`Unknown IPC Command: ${command}`);
+    const err = `Unknown IPC Command: ${command}`;
+    Telemetry.error('Bridge', err);
+    throw new Error(err);
   },
 
   // --- API METHODS ---
 
   async loadChartData(symbol: string, timeframe: string): Promise<OhlcData[]> {
-    const binaryBuffer = await TauriService.invoke<Uint8Array>('plugin:polars|load_history', { symbol, timeframe });
-    return BinaryParser.parseOhlc(binaryBuffer);
+    try {
+        const binaryBuffer = await TauriService.invoke<Uint8Array>('plugin:polars|load_history', { symbol, timeframe });
+        return BinaryParser.parseOhlc(binaryBuffer);
+    } catch (e: any) {
+        Telemetry.error('System', 'Failed to load chart data', { message: e.message });
+        throw e;
+    }
   },
 
+  /**
+   * Fetches market overview with Singleton Request Pattern & Exponential Backoff.
+   * Mandate 0.9.1 & 0.9.2
+   */
   async getMarketOverview(): Promise<any[]> {
-    return TauriService.invoke('get_market_overview');
+    const now = Date.now();
+
+    // 1. Backoff Enforcement
+    if (now < marketNextRetryTime) {
+        const wait = Math.ceil((marketNextRetryTime - now) / 1000);
+        const msg = `Market Stream throttled. Retrying in ${wait}s`;
+        // We throw here so the UI knows not to expect data, but we don't log as error to avoid spam
+        throw new Error(msg);
+    }
+
+    // 2. Singleton Deduplication
+    if (marketOverviewPromise) {
+        // Return existing promise to prevent duplicate IPC calls
+        return marketOverviewPromise;
+    }
+
+    // 3. Execution Wrapper
+    marketOverviewPromise = (async () => {
+        try {
+            const data = await TauriService.invoke<any[]>('get_market_overview');
+            
+            // Success: Reset Backoff
+            if (marketFailureCount > 0) {
+                Telemetry.success('Network', 'Market Stream Reconnected');
+                marketFailureCount = 0;
+                marketNextRetryTime = 0;
+            }
+            return data;
+        } catch (e: any) {
+            // Failure: Calculate Exponential Backoff (2, 4, 8, 16s)
+            marketFailureCount++;
+            const backoffSeconds = Math.min(16, Math.pow(2, marketFailureCount)); 
+            marketNextRetryTime = Date.now() + (backoffSeconds * 1000);
+            
+            Telemetry.warn('Network', `Market Stream Failed. Backing off for ${backoffSeconds}s`, { 
+                attempt: marketFailureCount, 
+                error: e.message 
+            });
+            
+            throw e;
+        } finally {
+            // Release lock
+            marketOverviewPromise = null;
+        }
+    })();
+
+    return marketOverviewPromise;
   }
 };
 

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useChart } from '../../context/ChartContext';
 import { TauriService } from '../../services/tauriService';
 import { THEME_CONFIG } from '../../constants';
+import { Telemetry } from '../../utils/telemetry';
 
 export const FinancialChart: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -22,6 +23,8 @@ export const FinancialChart: React.FC = () => {
   // Mandate 0.12.1: Hard Remount on Source Change (Key strategy)
   useEffect(() => {
     if (!chartContainerRef.current) return;
+
+    Telemetry.info('UI', `Initializing Chart Engine`, { symbol: state.symbol, theme: state.theme });
 
     const initialTheme = THEME_CONFIG[state.theme];
 
@@ -75,6 +78,7 @@ export const FinancialChart: React.FC = () => {
     return () => {
       resizeObserver.disconnect();
       chart.remove();
+      Telemetry.debug('UI', 'Chart Engine Disposed');
     };
   }, []); 
 
@@ -82,7 +86,15 @@ export const FinancialChart: React.FC = () => {
   useEffect(() => {
     if (seriesRef.current && chartData) {
       // Direct binary-to-chart injection
+      const start = performance.now();
       seriesRef.current.setData(chartData as unknown as CandlestickData[]);
+      const perf = performance.now() - start;
+      
+      if (perf > 16) {
+          Telemetry.warn('Performance', 'Chart Render Dropped Frame', { duration: `${perf.toFixed(2)}ms`, points: chartData.length });
+      } else {
+          Telemetry.debug('Performance', 'Chart Rendered', { duration: `${perf.toFixed(2)}ms` });
+      }
     }
   }, [chartData]);
 
@@ -120,6 +132,7 @@ export const FinancialChart: React.FC = () => {
             wickUpColor: currentTheme.wickUp,
             wickDownColor: currentTheme.wickDown,
         });
+        Telemetry.info('UI', 'Theme Switched', { theme: state.theme });
     }
   }, [state.theme]);
 

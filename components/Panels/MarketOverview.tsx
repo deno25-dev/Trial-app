@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ArrowUpRight, ArrowDownRight, MoreHorizontal, ChevronUp, ChevronDown, WifiOff, Wifi } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { TauriService } from '../../services/tauriService';
+import { Telemetry } from '../../utils/telemetry';
 
 // Define the shape of market items based on the mock backend
 interface MarketData {
@@ -39,6 +40,15 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({ isOpen, onToggle
     refetchInterval: 5000, // Poll every 5s
   });
 
+  // Log connection state changes
+  useEffect(() => {
+    if (isError) {
+        Telemetry.error('Network', 'Stream B: Connection Lost');
+    } else if (data) {
+        // Only log once periodically in real app, but here implies success
+    }
+  }, [isError, data]);
+
   return (
     <div className="h-full flex flex-col">
       {/* Panel Header */}
@@ -46,15 +56,15 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({ isOpen, onToggle
         className="h-10 border-b border-border flex items-center justify-between px-4 bg-surface select-none cursor-pointer hover:bg-text/5 transition-colors"
         onClick={onToggle}
       >
-        <div className="flex items-center gap-2">
-            <button className="text-muted hover:text-text focus:outline-none">
+        <div className="flex items-center gap-2 pointer-events-none">
+            <div className="text-muted">
                 {isOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-            </button>
+            </div>
             <span className="font-bold text-sm tracking-wide text-muted uppercase">Market Overview (Stream B)</span>
             {isFetching && <span className="w-2 h-2 rounded-full bg-primary animate-pulse ml-2" title="Updating..." />}
         </div>
         <button 
-            className="text-muted hover:text-text p-1 rounded hover:bg-text/5"
+            className="text-muted hover:text-text p-1 rounded hover:bg-text/5 pointer-events-auto"
             onClick={(e) => {
                 e.stopPropagation();
             }}

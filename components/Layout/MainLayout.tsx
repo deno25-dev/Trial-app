@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { TopBar } from '../Header/TopBar';
 import { DrawingTools } from '../Sidebar/DrawingTools';
 import { MarketOverview } from '../Panels/MarketOverview';
@@ -7,6 +7,75 @@ import clsx from 'clsx';
 
 export const MainLayout: React.FC = () => {
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [panelHeight, setPanelHeight] = useState(256); // Default 256px
+  const [isDragging, setIsDragging] = useState(false);
+  
+  // Refs for Event Listeners (prevents stale closures/dependency trashing)
+  const isPanelOpenRef = useRef(isPanelOpen);
+  const dragStartY = useRef(0);
+  const dragStartHeight = useRef(0);
+
+  // Keep ref synced with state
+  useEffect(() => {
+    isPanelOpenRef.current = isPanelOpen;
+  }, [isPanelOpen]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); 
+    setIsDragging(true);
+    dragStartY.current = e.clientY;
+    // Capture the starting visual height (40 if closed, actual height if open)
+    dragStartHeight.current = isPanelOpenRef.current ? panelHeight : 40;
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      
+      const delta = dragStartY.current - e.clientY;
+      // Constraint: Min 40px (header), Max (Window - 150px)
+      const newHeight = Math.max(40, Math.min(dragStartHeight.current + delta, window.innerHeight - 150));
+      
+      setPanelHeight(newHeight);
+      
+      // Auto-toggle logic using Ref to avoid re-binding listeners
+      if (newHeight > 45) {
+          if (!isPanelOpenRef.current) setIsPanelOpen(true);
+      } else {
+          if (isPanelOpenRef.current) setIsPanelOpen(false);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'row-resize';
+    } else {
+      document.body.style.cursor = 'default';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+    };
+  }, [isDragging]); // Only depend on isDragging to mount/unmount listeners once
+
+  const handleToggle = () => {
+    setIsPanelOpen(prev => {
+        const newState = !prev;
+        // Mandate: If opening and height is collapsed/small, restore default
+        if (newState && panelHeight < 100) {
+            setPanelHeight(256);
+        }
+        return newState;
+    });
+  };
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -22,20 +91,33 @@ export const MainLayout: React.FC = () => {
         {/* Main Workspace */}
         <div className="flex-1 flex flex-col relative bg-background min-w-0">
           {/* Chart Area */}
-          <div className="flex-1 relative">
+          <div className="flex-1 relative z-0">
             <FinancialChart />
             
-            {/* Mandate 3.1: Persistent Drawing Settings Bar could go here as overlay */}
+            {/* Mandate 0.24: Overlay mask during drag to prevent mouse events trapped in chart */}
+            {isDragging && (
+                <div className="absolute inset-0 z-50 bg-transparent cursor-row-resize" />
+            )}
           </div>
 
-          {/* Bottom Panel - Mandate 4.0 */}
+          {/* Bottom Panel - Mandate 4.0 & 0.24 */}
           <div 
+            style={{ height: isPanelOpen ? panelHeight : 40 }}
             className={clsx(
-              "border-t border-border bg-surface z-20 transition-all duration-300 ease-in-out overflow-hidden shrink-0",
-              isPanelOpen ? "h-64" : "h-10"
+              "border-t border-border bg-surface z-30 overflow-hidden shrink-0 relative flex flex-col shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]",
+              !isDragging && "transition-all duration-300 ease-in-out"
             )}
           >
-            <MarketOverview isOpen={isPanelOpen} onToggle={() => setIsPanelOpen(!isPanelOpen)} />
+            {/* Resizer Handle Area */}
+            <div 
+                className="absolute top-0 left-0 w-full h-4 cursor-row-resize z-50 flex justify-center group hover:bg-primary/5 transition-colors"
+                onMouseDown={handleMouseDown}
+            >
+                {/* Visual Pill Handle */}
+                <div className="w-12 h-1.5 bg-border group-hover:bg-primary/50 rounded-full mt-1.5 transition-colors" />
+            </div>
+
+            <MarketOverview isOpen={isPanelOpen} onToggle={handleToggle} />
           </div>
         </div>
 
