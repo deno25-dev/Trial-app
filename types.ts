@@ -21,7 +21,7 @@ export interface ChartState {
   theme: 'dark' | 'light'; // Mandate 0.7: Theme support
 }
 
-export type DrawingToolType = 'cursor' | 'crosshair' | 'trendline' | 'ray' | 'horizontal_line' | 'vertical_line' | 'rectangle' | 'fib_retracement' | 'brush' | 'text';
+export type DrawingToolType = 'cursor' | 'crosshair' | 'trendline' | 'ray' | 'horizontal_line' | 'vertical_line' | 'rectangle' | 'fib_retracement' | 'brush' | 'text' | 'pencil' | 'measure';
 
 export interface MarketTicker {
   symbol: string;
