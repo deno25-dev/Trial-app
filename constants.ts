@@ -38,7 +38,8 @@ export const THEME_CONFIG = {
 export const THEME_COLORS = THEME_CONFIG.dark;
 
 // Mandate 2.5: Favorite Timeframes
-export const FAVORITE_TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
+export const ALL_TIMEFRAMES: Timeframe[] = ['1m', '3m', '5m', '15m', '30m', '45m', '1h', '2h', '4h', '12h', '1d', '1w', '1M'];
+export const FAVORITE_TIMEFRAMES: Timeframe[] = ['15m', '1h', '4h', '1d', '1w'];
 
 // Mandate 0.10.1: API Throttling
 export const API_POLL_INTERVAL = 30000; // 30s

@@ -125,13 +125,19 @@ export const DrawingTools: React.FC = () => {
       {/* Spacer to push bottom tools down */}
       <div className="flex-1" />
 
-      {/* 4. Utility Group (Lock, Hide) */}
+      {/* 4. Utility Group (Lock, Favorites, Hide) */}
       <div className="flex flex-col gap-1 mb-2">
          <ToolButton 
             active={false}
             onClick={() => {}} 
             icon={<Lock size={20} />} 
             label="Lock All Drawings" 
+        />
+        <ToolButton 
+            active={true} 
+            onClick={() => {}} 
+            icon={<Star size={20} className="fill-current text-yellow-500" />} 
+            label="Favorites Bar" 
         />
         <ToolButton 
             active={!state.showGrid}
@@ -141,14 +147,8 @@ export const DrawingTools: React.FC = () => {
         />
       </div>
 
-      {/* 5. Favorites & Delete */}
+      {/* 5. Delete */}
       <div className="flex flex-col gap-2 mb-2">
-         <ToolButton 
-            active={true} // Highlighted in screenshot
-            onClick={() => {}} 
-            icon={<Star size={20} className="fill-current text-yellow-500" />} 
-            label="Favorites Bar" 
-        />
         <ToolButton 
             active={false}
             onClick={() => console.log('Delete All')} 

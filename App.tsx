@@ -35,7 +35,8 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ChartProvider>
-          <div className="h-screen w-screen bg-background text-text flex flex-col font-mono overflow-hidden">
+          {/* Removed font-mono from here to allow Inter to shine in UI elements */}
+          <div className="h-screen w-screen bg-background text-text flex flex-col overflow-hidden">
             <MainLayout />
             {isDevToolsOpen && <DeveloperTools onClose={() => setIsDevToolsOpen(false)} />}
           </div>
