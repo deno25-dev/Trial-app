@@ -1,7 +1,16 @@
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight, MoreHorizontal, ChevronUp, ChevronDown } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, MoreHorizontal, ChevronUp, ChevronDown, WifiOff, Wifi } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { TauriService } from '../../services/tauriService';
 
-const MarketItem: React.FC<{ symbol: string; price: string; change: number }> = ({ symbol, price, change }) => (
+// Define the shape of market items based on the mock backend
+interface MarketData {
+    symbol: string;
+    price: string;
+    change: number;
+}
+
+const MarketItem: React.FC<MarketData> = ({ symbol, price, change }) => (
   <div className="flex items-center justify-between py-2 border-b border-border/50 hover:bg-text/5 px-2 cursor-pointer transition-colors">
     <div className="flex flex-col">
         <span className="font-bold text-sm text-text">{symbol}</span>
@@ -23,6 +32,13 @@ interface MarketOverviewProps {
 }
 
 export const MarketOverview: React.FC<MarketOverviewProps> = ({ isOpen, onToggle }) => {
+  // Stream B: Polled Data via React Query
+  const { data, isError, isLoading, isFetching } = useQuery({
+    queryKey: ['marketOverview'],
+    queryFn: TauriService.getMarketOverview,
+    refetchInterval: 5000, // Poll every 5s
+  });
+
   return (
     <div className="h-full flex flex-col">
       {/* Panel Header */}
@@ -35,12 +51,12 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({ isOpen, onToggle
                 {isOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
             </button>
             <span className="font-bold text-sm tracking-wide text-muted uppercase">Market Overview (Stream B)</span>
+            {isFetching && <span className="w-2 h-2 rounded-full bg-primary animate-pulse ml-2" title="Updating..." />}
         </div>
         <button 
             className="text-muted hover:text-text p-1 rounded hover:bg-text/5"
             onClick={(e) => {
                 e.stopPropagation();
-                // Menu logic here
             }}
         >
             <MoreHorizontal size={16} />
@@ -49,18 +65,26 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({ isOpen, onToggle
 
       {/* List */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
-        <MarketItem symbol="BTCUSDT" price="64,231.50" change={2.4} />
-        <MarketItem symbol="ETHUSDT" price="3,450.20" change={-1.2} />
-        <MarketItem symbol="SOLUSDT" price="145.80" change={5.7} />
-        <MarketItem symbol="BNBUSDT" price="590.10" change={0.4} />
-        <MarketItem symbol="ADAUSDT" price="0.45" change={-0.8} />
-        <MarketItem symbol="XRPUSDT" price="0.62" change={1.1} />
-        <MarketItem symbol="DOGEUSDT" price="0.12" change={-3.4} />
+        {isLoading && <div className="p-4 text-xs text-muted text-center">Initializing Feed...</div>}
+        
+        {isError && (
+             <div className="p-4 flex flex-col items-center text-danger text-xs">
+                <WifiOff size={24} className="mb-2" />
+                <span>Stream Disconnected</span>
+             </div>
+        )}
+
+        {data && data.map((item: MarketData) => (
+            <MarketItem key={item.symbol} {...item} />
+        ))}
       </div>
       
       {/* Status Bar */}
       <div className="h-6 bg-background border-t border-border flex items-center px-4 justify-between text-[10px] text-muted font-mono shrink-0">
-        <span className="text-muted">Connection: Stable (24ms)</span>
+        <div className="flex items-center gap-2">
+            {isError ? <WifiOff size={10} className="text-danger" /> : <Wifi size={10} className="text-success" />}
+            <span>Connection: {isError ? 'Offline' : 'Stable (IPC)'}</span>
+        </div>
         <span className="text-muted">v1.2.5</span>
       </div>
     </div>

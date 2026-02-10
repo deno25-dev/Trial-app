@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createChart, IChartApi, ISeriesApi, CandlestickData, ColorType, CrosshairMode } from 'lightweight-charts';
+import { useQuery } from '@tanstack/react-query';
 import { useChart } from '../../context/ChartContext';
 import { TauriService } from '../../services/tauriService';
 import { THEME_CONFIG } from '../../constants';
-import { OhlcData } from '../../types';
 
 export const FinancialChart: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -11,7 +11,13 @@ export const FinancialChart: React.FC = () => {
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   
   const { state } = useChart();
-  const [loading, setLoading] = useState(true);
+
+  // --- UI STATE MANAGEMENT (TanStack Query) ---
+  const { data: chartData, isLoading, error } = useQuery({
+    queryKey: ['chartData', state.symbol, state.interval],
+    queryFn: () => TauriService.loadChartData(state.symbol, state.interval),
+    refetchOnWindowFocus: false, // Don't refetch Stream A on focus (Local data doesn't change)
+  });
 
   // Mandate 0.12.1: Hard Remount on Source Change (Key strategy)
   useEffect(() => {
@@ -57,19 +63,11 @@ export const FinancialChart: React.FC = () => {
     seriesRef.current = series;
 
     // Handle Resize using ResizeObserver
-    // This ensures the chart adapts not just to window resize, but also layout changes (like panel toggles)
     const resizeObserver = new ResizeObserver((entries) => {
       if (!chartContainerRef.current || !chartApiRef.current) return;
-      
       const { width, height } = entries[0].contentRect;
-      
-      // Ensure we have valid dimensions to avoid library errors
       if (width === 0 || height === 0) return;
-
-      chartApiRef.current.applyOptions({ 
-        width: width,
-        height: height
-      });
+      chartApiRef.current.applyOptions({ width: width, height: height });
     });
 
     resizeObserver.observe(chartContainerRef.current);
@@ -78,7 +76,15 @@ export const FinancialChart: React.FC = () => {
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, []); // Run once on mount
+  }, []); 
+
+  // --- DATA SYNC ---
+  useEffect(() => {
+    if (seriesRef.current && chartData) {
+      // Direct binary-to-chart injection
+      seriesRef.current.setData(chartData as unknown as CandlestickData[]);
+    }
+  }, [chartData]);
 
   // Mandate 2.7: Toggle Gridlines
   useEffect(() => {
@@ -96,7 +102,6 @@ export const FinancialChart: React.FC = () => {
   useEffect(() => {
     if (chartApiRef.current && seriesRef.current) {
         const currentTheme = THEME_CONFIG[state.theme];
-        
         chartApiRef.current.applyOptions({
             layout: {
                 background: { type: ColorType.Solid, color: currentTheme.background },
@@ -106,14 +111,9 @@ export const FinancialChart: React.FC = () => {
                 vertLines: { color: currentTheme.grid },
                 horzLines: { color: currentTheme.grid },
             },
-            timeScale: {
-                borderColor: currentTheme.grid,
-            },
-            rightPriceScale: {
-                borderColor: currentTheme.grid,
-            }
+            timeScale: { borderColor: currentTheme.grid },
+            rightPriceScale: { borderColor: currentTheme.grid }
         });
-
         seriesRef.current.applyOptions({
             upColor: currentTheme.candleUp,
             downColor: currentTheme.candleDown,
@@ -123,38 +123,29 @@ export const FinancialChart: React.FC = () => {
     }
   }, [state.theme]);
 
-  // Data Loading Logic (Stream A)
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const data = await TauriService.loadLocalData(state.symbol, state.interval);
-        if (seriesRef.current) {
-          // Type casting necessary as lightweight-charts expects strict types
-          seriesRef.current.setData(data as unknown as CandlestickData[]);
-        }
-      } catch (error) {
-        console.error("Failed to load chart data", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [state.symbol, state.interval]);
-
   return (
     <div className="w-full h-full relative group">
       <div ref={chartContainerRef} className="w-full h-full" />
       
       {/* Loading Overlay */}
-      {loading && (
+      {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-50">
-          <div className="text-primary font-mono animate-pulse">LOADING STREAM A...</div>
+          <div className="text-primary font-mono animate-pulse">
+             SYNCING STREAM A [BINARY IPC]...
+          </div>
+        </div>
+      )}
+
+      {/* Error Overlay */}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-50">
+          <div className="text-danger font-mono p-4 border border-danger bg-surface rounded">
+             DATA FETCH FAILURE: {error.message}
+          </div>
         </div>
       )}
       
-      {/* Watermark/Ticker Overlay */}
+      {/* Watermark */}
       <div className="absolute top-4 left-4 pointer-events-none opacity-20 text-6xl font-bold text-muted">
         {state.symbol}
       </div>

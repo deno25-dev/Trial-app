@@ -1,3 +1,4 @@
+
 export type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d' | '1w';
 
 export interface OhlcData {
@@ -35,4 +36,15 @@ export interface StickyNote {
   position: { x: number; y: number };
   size: { w: number; h: number };
   color: string;
+}
+
+// --- DATABASE SCHEMA (Drift/SQL Equivalent) ---
+export interface TradeLog {
+  id?: number; // Auto-increment in SQL
+  timestamp: number;
+  symbol: string;
+  price: number;
+  volume: number;
+  side: 'buy' | 'sell';
+  indicators: Record<string, any>; // JSON Column
 }
