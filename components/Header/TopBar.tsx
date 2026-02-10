@@ -68,9 +68,6 @@ export const TopBar: React.FC = () => {
         <button className="p-2 hover:bg-text/5 rounded text-muted hover:text-text transition-colors">
             <Settings size={18} />
         </button>
-        <button className="bg-primary hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-bold ml-2">
-            Connect Broker
-        </button>
       </div>
     </div>
   );

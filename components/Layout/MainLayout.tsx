@@ -15,12 +15,12 @@ export const MainLayout: React.FC = () => {
       
       <div className="flex flex-1 overflow-hidden relative">
         {/* Left Toolbar - Drawing Tools */}
-        <div className="w-14 border-r border-border bg-surface flex flex-col items-center py-4 z-20">
+        <div className="w-14 border-r border-border bg-surface flex flex-col items-center py-4 z-20 shrink-0">
           <DrawingTools />
         </div>
 
         {/* Main Workspace */}
-        <div className="flex-1 flex flex-col relative bg-background">
+        <div className="flex-1 flex flex-col relative bg-background min-w-0">
           {/* Chart Area */}
           <div className="flex-1 relative">
             <FinancialChart />
@@ -31,12 +31,17 @@ export const MainLayout: React.FC = () => {
           {/* Bottom Panel - Mandate 4.0 */}
           <div 
             className={clsx(
-              "border-t border-border bg-surface z-20 transition-all duration-300 ease-in-out overflow-hidden",
+              "border-t border-border bg-surface z-20 transition-all duration-300 ease-in-out overflow-hidden shrink-0",
               isPanelOpen ? "h-64" : "h-10"
             )}
           >
             <MarketOverview isOpen={isPanelOpen} onToggle={() => setIsPanelOpen(!isPanelOpen)} />
           </div>
+        </div>
+
+        {/* Right Sidebar - Empty as requested */}
+        <div className="w-14 border-l border-border bg-surface flex flex-col items-center py-4 z-20 shrink-0">
+          {/* Future tools or object tree */}
         </div>
       </div>
     </div>
