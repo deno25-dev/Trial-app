@@ -3,30 +3,23 @@ import { useChart } from '../../context/ChartContext';
 import { FAVORITE_TIMEFRAMES, ALL_TIMEFRAMES } from '../../constants';
 import { Timeframe } from '../../types';
 import { 
-  Settings, 
   Search, 
   LayoutGrid, 
-  Menu, 
-  Sun, 
-  Moon, 
-  Monitor,
   Undo2,
   Redo2,
   Rewind,
   SkipBack,
   ChevronDown,
   Star,
-  Clock
+  Clock,
+  CandlestickChart,
+  LineChart
 } from 'lucide-react';
 import clsx from 'clsx';
 
 export const TopBar: React.FC = () => {
-  const { state, setInterval, toggleTheme } = useChart();
+  const { state, setInterval, toggleChartType } = useChart();
   
-  // Settings Dropdown State
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const settingsRef = useRef<HTMLDivElement>(null);
-
   // Timeframe Dropdown & Favorites State
   const [isTimeframeOpen, setIsTimeframeOpen] = useState(false);
   const [favoriteIntervals, setFavoriteIntervals] = useState<Timeframe[]>(FAVORITE_TIMEFRAMES);
@@ -35,21 +28,18 @@ export const TopBar: React.FC = () => {
   // Handle click outside for dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-        setIsSettingsOpen(false);
-      }
       if (timeframeRef.current && !timeframeRef.current.contains(event.target as Node)) {
         setIsTimeframeOpen(false);
       }
     };
 
-    if (isSettingsOpen || isTimeframeOpen) {
+    if (isTimeframeOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isSettingsOpen, isTimeframeOpen]);
+  }, [isTimeframeOpen]);
 
   const toggleFavorite = (tf: Timeframe) => {
     setFavoriteIntervals(prev => {
@@ -76,7 +66,33 @@ export const TopBar: React.FC = () => {
 
         <div className="w-px h-5 bg-border mx-1" />
 
-        {/* 2. Undo / Redo */}
+        {/* 2. Chart Type Toggle */}
+        <div className="flex items-center bg-text/5 rounded p-0.5 mx-1">
+            <button 
+                onClick={() => state.chartType !== 'candle' && toggleChartType()}
+                className={clsx(
+                    "p-1.5 rounded-sm transition-all",
+                    state.chartType === 'candle' ? "bg-background shadow-sm text-primary" : "text-muted hover:text-text"
+                )}
+                title="Candles"
+            >
+                <CandlestickChart size={18} strokeWidth={1.5} />
+            </button>
+            <button 
+                onClick={() => state.chartType !== 'line' && toggleChartType()}
+                className={clsx(
+                    "p-1.5 rounded-sm transition-all",
+                    state.chartType === 'line' ? "bg-background shadow-sm text-primary" : "text-muted hover:text-text"
+                )}
+                title="Line"
+            >
+                <LineChart size={18} strokeWidth={1.5} />
+            </button>
+        </div>
+
+        <div className="w-px h-5 bg-border mx-1" />
+
+        {/* 3. Undo / Redo */}
         <div className="flex items-center gap-1">
             <button className="p-2 text-muted hover:text-text hover:bg-text/5 rounded transition-colors" title="Undo">
                 <Undo2 size={18} strokeWidth={1.5} />
@@ -86,7 +102,7 @@ export const TopBar: React.FC = () => {
             </button>
         </div>
 
-        {/* 3. Replay Controls */}
+        {/* 4. Replay Controls */}
         <div className="flex items-center gap-1 ml-1">
             <button className="p-2 text-muted hover:text-text hover:bg-text/5 rounded transition-colors" title="Standard Replay">
                 <Rewind size={20} strokeWidth={1.5} />
@@ -98,7 +114,7 @@ export const TopBar: React.FC = () => {
 
         <div className="w-px h-5 bg-border mx-2" />
 
-        {/* 4. Timeframes Selector & Favorites */}
+        {/* 5. Timeframes Selector & Favorites */}
         <div className="flex items-center relative" ref={timeframeRef}>
              {/* Dropdown Trigger with Clock Icon */}
              <button 
@@ -176,55 +192,11 @@ export const TopBar: React.FC = () => {
         </div>
       </div>
 
-      {/* --- Right Section: Layout & Settings --- */}
+      {/* --- Right Section: Layout --- */}
       <div className="flex items-center gap-2">
         <button className="p-2 hover:bg-text/5 rounded text-muted hover:text-text transition-colors">
             <LayoutGrid size={18} strokeWidth={1.5} />
         </button>
-        
-        {/* Settings Dropdown */}
-        <div className="relative" ref={settingsRef}>
-          <button 
-            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className={clsx(
-                "p-2 rounded transition-colors",
-                isSettingsOpen ? "bg-primary/10 text-primary" : "text-muted hover:text-text hover:bg-text/5"
-            )}
-            title="Settings"
-          >
-              <Settings size={18} strokeWidth={1.5} />
-          </button>
-
-          {isSettingsOpen && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-surface border border-border shadow-xl rounded-md overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
-              <div className="p-1.5 flex flex-col gap-1">
-                {/* Theme Toggle */}
-                <button 
-                  onClick={() => {
-                    toggleTheme();
-                    setIsSettingsOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm text-text hover:bg-text/5 rounded transition-colors group"
-                >
-                  <div className="flex items-center gap-2">
-                    {state.theme === 'dark' ? <Moon size={16} className="text-primary" /> : <Sun size={16} className="text-orange-500" />}
-                    <span>Theme</span>
-                  </div>
-                  <span className="text-xs text-muted group-hover:text-text transition-colors">
-                    {state.theme === 'dark' ? 'Dark' : 'Light'}
-                  </span>
-                </button>
-
-                <div className="h-px bg-border my-1" />
-
-                <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-text hover:bg-text/5 rounded transition-colors">
-                  <Monitor size={16} />
-                  <span>System Monitor</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TopBar } from '../Header/TopBar';
 import { DrawingTools } from '../Sidebar/DrawingTools';
+import { RightSidebar } from '../Sidebar/RightSidebar';
 import { MarketOverview } from '../Panels/MarketOverview';
 import { FinancialChart } from '../Chart/FinancialChart';
 import clsx from 'clsx';
@@ -121,9 +122,9 @@ export const MainLayout: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Sidebar - Empty as requested */}
+        {/* Right Sidebar - Mandate 0.x: Implemented */}
         <div className="w-14 border-l border-border bg-surface flex flex-col items-center py-4 z-20 shrink-0">
-          {/* Future tools or object tree */}
+          <RightSidebar />
         </div>
       </div>
     </div>
