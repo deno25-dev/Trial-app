@@ -88,6 +88,22 @@ export interface TradeLog {
   indicators: Record<string, any>; // JSON Column
 }
 
+// --- TRADING PANEL TYPES ---
+export interface Position {
+  id: string;
+  symbol: string;
+  leverage: number;
+  side: 'Long' | 'Short';
+  size: number;
+  sizeCurrency: string;
+  entryPrice: number;
+  markPrice: number;
+  liqPrice: number;
+  margin: number;
+  pnl: number;
+  roe: number;
+}
+
 // --- TELEMETRY / LOGGING SYSTEM ---
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'success';
 export type LogCategory = 'UI' | 'Network' | 'Performance' | 'Persistence' | 'Bridge' | 'Database' | 'System';
