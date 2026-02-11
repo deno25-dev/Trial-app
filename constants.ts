@@ -13,25 +13,29 @@ export const SKIN_CONFIG = {
         name: 'Midnight River',
         type: 'dark',
         css: {
-            '--bg-background': '#131722',
-            '--bg-surface': '#1E222D',
-            '--border-color': '#2A2E39',
-            '--text-primary': '#D1D4DC',
-            '--text-muted': '#787B86',
-            '--color-primary': '#2962FF', // Vivid Blue (TradingView)
-            '--color-success': '#089981', // TV Green
-            '--color-danger': '#F23645',  // TV Red
+            // Deep Teal/Slate Void
+            '--bg-background': '#0f172a', 
+            // Glassy Surface (Darker)
+            '--bg-surface': '#1e293b',    
+            // Cyan/Teal Border
+            '--border-color': '#334155',  
+            '--text-primary': '#f1f5f9',
+            '--text-muted': '#94a3b8',
+            // Neon Cyan Primary
+            '--color-primary': '#22d3ee', 
+            '--color-success': '#2dd4bf', 
+            '--color-danger': '#fb7185',  
         },
         chart: {
-            background: '#131722',
-            surface: '#1E222D',
-            grid: '#1E222D', // Subtle grid
-            text: '#D1D4DC',
-            candleUp: '#089981',
-            candleDown: '#F23645',
-            wickUp: '#089981',
-            wickDown: '#F23645',
-            crosshair: '#787B86',
+            background: '#0f172a',
+            surface: '#1e293b',
+            grid: '#1e293b', 
+            text: '#94a3b8',
+            candleUp: '#2dd4bf',
+            candleDown: '#fb7185',
+            wickUp: '#2dd4bf',
+            wickDown: '#fb7185',
+            crosshair: '#22d3ee',
         }
     },
     'oled': {

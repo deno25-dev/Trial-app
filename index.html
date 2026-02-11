@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- Import Inter Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -47,19 +47,21 @@
         --color-danger: #dc2626;
       }
       .dark {
-        --bg-background: #0a0a0c;
-        --bg-surface: #131316;
-        --border-color: #2a2a2f;
-        --text-primary: #e4e4e7;
-        --text-muted: #71717a;
-        --color-primary: #3b82f6;
-        --color-success: #22c55e;
-        --color-danger: #ef4444;
+        --bg-background: #0f172a;
+        --bg-surface: #1e293b;
+        --border-color: #334155;
+        --text-primary: #f1f5f9;
+        --text-muted: #94a3b8;
+        --color-primary: #22d3ee;
+        --color-success: #2dd4bf;
+        --color-danger: #fb7185;
       }
 
       /* Red Pill "Terminal" Aesthetics */
       body {
         background-color: var(--bg-background);
+        /* Subtle deep gradient for that premium "Midnight River" feel */
+        background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, var(--bg-background) 60%);
         color: var(--text-primary);
         font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
         overflow: hidden; /* App-like feel */
@@ -72,7 +74,7 @@
         height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: var(--bg-surface);
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
         background: var(--border-color);
@@ -85,6 +87,14 @@
       /* Hide attribution for lightweight charts as per spec 0.5.1 */
       .tv-lightweight-charts-attribution {
         display: none !important;
+      }
+
+      /* Glassmorphism Utility */
+      .glass {
+          background: rgba(30, 41, 59, 0.4);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border: 1px solid rgba(51, 65, 85, 0.5);
       }
     </style>
   <script type="importmap">

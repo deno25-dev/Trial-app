@@ -5,26 +5,24 @@ import { Timeframe, AppSkin } from '../../types';
 import { 
   Search, 
   LayoutGrid, 
+  Rewind,
   Undo2,
   Redo2,
-  Rewind,
-  SkipBack,
   ChevronDown,
-  Star,
   Clock,
   CandlestickChart,
   LineChart,
   Palette,
-  Check
+  Check,
+  StepBack
 } from 'lucide-react';
 import clsx from 'clsx';
 
 export const TopBar: React.FC = () => {
   const { state, setInterval, toggleChartType, setSkin, toggleSearch } = useChart();
   
-  // Timeframe Dropdown & Favorites State
+  // Timeframe Dropdown State
   const [isTimeframeOpen, setIsTimeframeOpen] = useState(false);
-  const [favoriteIntervals, setFavoriteIntervals] = useState<Timeframe[]>(FAVORITE_TIMEFRAMES);
   const timeframeRef = useRef<HTMLDivElement>(null);
 
   // Skins Dropdown State
@@ -50,180 +48,133 @@ export const TopBar: React.FC = () => {
     };
   }, [isTimeframeOpen, isSkinMenuOpen]);
 
-  const toggleFavorite = (tf: Timeframe) => {
-    setFavoriteIntervals(prev => {
-      if (prev.includes(tf)) {
-        return prev.filter(t => t !== tf);
-      } else {
-        // Sort based on the order in ALL_TIMEFRAMES to keep them consistent
-        const newFavs = [...prev, tf];
-        return newFavs.sort((a, b) => ALL_TIMEFRAMES.indexOf(a) - ALL_TIMEFRAMES.indexOf(b));
-      }
-    });
-  };
+  const Separator = () => <div className="h-5 w-px bg-white/10 mx-1" />;
 
   return (
-    <div className="h-12 bg-surface border-b border-border flex items-center px-2 justify-between select-none relative z-40">
+    <div className="h-12 border-b border-border bg-background flex items-center px-3 select-none relative z-40 gap-1 text-muted shadow-sm transition-colors duration-300">
       
-      {/* --- Left Section: Tools --- */}
-      <div className="flex items-center gap-1 md:gap-2">
-        
-        {/* 1. Search */}
-        <div 
-            onClick={toggleSearch}
-            className="w-10 h-10 flex items-center justify-center rounded hover:bg-text/5 cursor-pointer text-muted hover:text-text transition-colors"
-            title="Search Assets (Cmd+K)"
-        >
-            <Search size={20} />
-        </div>
+      {/* 1. Search */}
+      <button 
+        onClick={toggleSearch}
+        className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors"
+        title="Search Symbol (Cmd+K)"
+      >
+        <Search size={18} strokeWidth={2} />
+      </button>
 
-        <div className="w-px h-5 bg-border mx-1" />
+      <Separator />
 
-        {/* 2. Chart Type Toggle */}
-        <div className="flex items-center bg-text/5 rounded p-0.5 mx-1">
-            <button 
-                onClick={() => state.chartType !== 'candle' && toggleChartType()}
-                className={clsx(
-                    "p-1.5 rounded-sm transition-all",
-                    state.chartType === 'candle' ? "bg-background shadow-sm text-primary" : "text-muted hover:text-text"
-                )}
-                title="Candles"
-            >
-                <CandlestickChart size={18} strokeWidth={1.5} />
-            </button>
-            <button 
-                onClick={() => state.chartType !== 'line' && toggleChartType()}
-                className={clsx(
-                    "p-1.5 rounded-sm transition-all",
-                    state.chartType === 'line' ? "bg-background shadow-sm text-primary" : "text-muted hover:text-text"
-                )}
-                title="Line"
-            >
-                <LineChart size={18} strokeWidth={1.5} />
-            </button>
-        </div>
+      {/* 2. Chart Types */}
+      <button 
+        onClick={() => state.chartType !== 'candle' && toggleChartType()}
+        className={clsx(
+            "w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 transition-colors",
+            state.chartType === 'candle' ? "text-primary" : "hover:text-text"
+        )}
+        title="Candles"
+      >
+        <CandlestickChart size={18} strokeWidth={2} />
+      </button>
+      <button 
+        onClick={() => state.chartType !== 'line' && toggleChartType()}
+        className={clsx(
+            "w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 transition-colors",
+            state.chartType === 'line' ? "text-primary" : "hover:text-text"
+        )}
+        title="Line"
+      >
+        <LineChart size={18} strokeWidth={2} />
+      </button>
 
-        <div className="w-px h-5 bg-border mx-1" />
+      <Separator />
 
-        {/* 3. Undo / Redo */}
-        <div className="flex items-center gap-1">
-            <button className="p-2 text-muted hover:text-text hover:bg-text/5 rounded transition-colors" title="Undo">
-                <Undo2 size={18} strokeWidth={1.5} />
-            </button>
-            <button className="p-2 text-muted hover:text-text hover:bg-text/5 rounded transition-colors" title="Redo">
-                <Redo2 size={18} strokeWidth={1.5} />
-            </button>
-        </div>
+      {/* 3. History & Replay (Visual Only) */}
+      <button className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors">
+        <Undo2 size={18} strokeWidth={2} />
+      </button>
+      <button className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors">
+        <Redo2 size={18} strokeWidth={2} />
+      </button>
+      
+      <button className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors ml-1">
+         <Rewind size={18} strokeWidth={2} />
+      </button>
+       <button className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors">
+         <StepBack size={18} strokeWidth={2} />
+      </button>
 
-        {/* 4. Replay Controls */}
-        <div className="flex items-center gap-1 ml-1">
-            <button className="p-2 text-muted hover:text-text hover:bg-text/5 rounded transition-colors" title="Standard Replay">
-                <Rewind size={20} strokeWidth={1.5} />
-            </button>
-            <button className="p-2 text-primary hover:text-primary/80 bg-primary/10 rounded transition-colors" title="Advanced Replay">
-                <SkipBack size={20} strokeWidth={1.5} />
-            </button>
-        </div>
+      <Separator />
 
-        <div className="w-px h-5 bg-border mx-2" />
+      {/* 4. Timeframes */}
+      <div className="flex items-center gap-0.5 relative" ref={timeframeRef}>
+         {/* Dropdown Trigger */}
+         <button 
+            onClick={() => setIsTimeframeOpen(!isTimeframeOpen)}
+            className="flex items-center gap-1 px-2 h-9 rounded hover:bg-white/5 hover:text-text transition-colors"
+         >
+            <Clock size={18} />
+            <ChevronDown size={12} />
+         </button>
 
-        {/* 5. Timeframes Selector & Favorites */}
-        <div className="flex items-center relative" ref={timeframeRef}>
-             {/* Dropdown Trigger with Clock Icon */}
-             <button 
-                onClick={() => setIsTimeframeOpen(!isTimeframeOpen)}
-                className={clsx(
-                    "flex items-center gap-1 px-2 py-1.5 rounded transition-colors mr-2",
-                    isTimeframeOpen ? "text-primary bg-primary/10" : "text-muted hover:text-text hover:bg-text/5"
-                )}
-                title="Select Interval"
-             >
-                <Clock size={18} strokeWidth={1.5} />
-                <ChevronDown size={12} />
-             </button>
+         {/* Favorites List */}
+         <div className="hidden lg:flex items-center gap-1 ml-1">
+            {FAVORITE_TIMEFRAMES.map((tf) => (
+                <button
+                    key={tf}
+                    onClick={() => setInterval(tf)}
+                    className={clsx(
+                        "px-3 h-7 text-xs font-bold rounded transition-colors",
+                        state.interval === tf 
+                        ? "bg-primary text-white shadow-sm" 
+                        : "text-muted hover:text-text hover:bg-white/5"
+                    )}
+                >
+                    {tf}
+                </button>
+            ))}
+         </div>
 
-             {/* Dynamic Favorites Bar */}
-             <div className="hidden lg:flex items-center gap-0.5">
-                {favoriteIntervals.map((tf) => (
+         {/* Dropdown Menu */}
+         {isTimeframeOpen && (
+             <div className="absolute top-full left-0 mt-1 w-32 bg-surface/60 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100">
+                {ALL_TIMEFRAMES.map(tf => (
                     <button
                         key={tf}
-                        onClick={() => setInterval(tf)}
+                        onClick={() => { setInterval(tf); setIsTimeframeOpen(false); }}
                         className={clsx(
-                            "px-2.5 py-1 text-sm font-bold rounded transition-colors",
-                            state.interval === tf 
-                            ? "text-white bg-primary shadow-sm" // Solid Blue for active
-                            : "text-muted hover:text-text hover:bg-text/5"
+                            "w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition-colors flex items-center justify-between",
+                            state.interval === tf ? "text-primary font-bold" : "text-text"
                         )}
                     >
                         {tf}
+                        {state.interval === tf && <Check size={12} />}
                     </button>
                 ))}
              </div>
-
-             {/* Timeframe Dropdown Menu */}
-             {isTimeframeOpen && (
-                 <div className="absolute top-full left-0 mt-1 w-32 bg-surface border border-border shadow-xl rounded-md overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left flex flex-col py-1 z-50">
-                    <div className="px-3 py-1 text-[10px] font-bold text-muted/50 uppercase tracking-widest">Minutes</div>
-                    {ALL_TIMEFRAMES.filter(t => t.endsWith('m')).map(tf => (
-                        <TimeframeMenuItem 
-                            key={tf} 
-                            tf={tf} 
-                            active={state.interval === tf} 
-                            isFavorite={favoriteIntervals.includes(tf)}
-                            onSelect={() => { setInterval(tf); setIsTimeframeOpen(false); }}
-                            onToggleFav={() => toggleFavorite(tf)}
-                        />
-                    ))}
-                    
-                    <div className="h-px bg-border/50 my-1 mx-2" />
-                    <div className="px-3 py-1 text-[10px] font-bold text-muted/50 uppercase tracking-widest">Hours</div>
-                    {ALL_TIMEFRAMES.filter(t => t.endsWith('h')).map(tf => (
-                        <TimeframeMenuItem 
-                            key={tf} 
-                            tf={tf} 
-                            active={state.interval === tf} 
-                            isFavorite={favoriteIntervals.includes(tf)}
-                            onSelect={() => { setInterval(tf); setIsTimeframeOpen(false); }}
-                            onToggleFav={() => toggleFavorite(tf)}
-                        />
-                    ))}
-
-                    <div className="h-px bg-border/50 my-1 mx-2" />
-                    <div className="px-3 py-1 text-[10px] font-bold text-muted/50 uppercase tracking-widest">Days</div>
-                    {ALL_TIMEFRAMES.filter(t => !t.endsWith('m') && !t.endsWith('h')).map(tf => (
-                        <TimeframeMenuItem 
-                            key={tf} 
-                            tf={tf} 
-                            active={state.interval === tf} 
-                            isFavorite={favoriteIntervals.includes(tf)}
-                            onSelect={() => { setInterval(tf); setIsTimeframeOpen(false); }}
-                            onToggleFav={() => toggleFavorite(tf)}
-                        />
-                    ))}
-                 </div>
-             )}
-        </div>
+         )}
       </div>
 
-      {/* --- Right Section: Layout & Skins --- */}
-      <div className="flex items-center gap-2">
-        {/* Skins Selector (Visible in all modes) */}
+      <div className="flex-1" />
+
+      {/* 5. Right Side Tools */}
+      <div className="flex items-center gap-1">
+        {/* Skins Selector */}
         <div className="relative" ref={skinMenuRef}>
             <button
                 onClick={() => setIsSkinMenuOpen(!isSkinMenuOpen)}
                 className={clsx(
-                    "p-2 rounded transition-colors",
-                    isSkinMenuOpen ? "bg-text/10 text-text" : "hover:bg-text/5 text-muted hover:text-text"
+                    "w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 transition-colors",
+                    isSkinMenuOpen ? "text-text bg-white/5" : "text-muted hover:text-text"
                 )}
                 title="Themes / Skins"
             >
-                <Palette size={18} strokeWidth={1.5} />
+                <Palette size={18} strokeWidth={2} />
             </button>
             
             {isSkinMenuOpen && (
-                <div className="absolute top-full right-0 mt-1 w-48 bg-surface border border-border shadow-xl rounded-md overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
-                    <div className="px-3 py-2 text-[10px] font-bold text-muted/50 uppercase tracking-widest border-b border-border/50">
-                        Interface Skins
+                <div className="absolute top-full right-0 mt-1 w-48 bg-surface/60 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
+                        Skins
                     </div>
                     {Object.keys(SKIN_CONFIG).map((skinKey) => (
                         <button
@@ -233,50 +184,25 @@ export const TopBar: React.FC = () => {
                                 setIsSkinMenuOpen(false);
                             }}
                             className={clsx(
-                                "w-full flex items-center justify-between px-3 py-2 text-sm transition-colors",
-                                state.skin === skinKey ? "bg-primary/10 text-primary" : "text-text hover:bg-text/5"
+                                "w-full flex items-center justify-between px-3 py-2 text-xs transition-colors",
+                                state.skin === skinKey 
+                                    ? "bg-primary/10 text-primary font-medium" 
+                                    : "text-text hover:bg-white/10"
                             )}
                         >
                             <span>{SKIN_CONFIG[skinKey].name}</span>
-                            {state.skin === skinKey && <Check size={14} />}
+                            {state.skin === skinKey && <Check size={12} />}
                         </button>
                     ))}
                 </div>
             )}
         </div>
 
-        <button className="p-2 hover:bg-text/5 rounded text-muted hover:text-text transition-colors">
-            <LayoutGrid size={18} strokeWidth={1.5} />
+        <button className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors">
+            <LayoutGrid size={18} strokeWidth={2} />
         </button>
       </div>
+
     </div>
   );
 };
-
-// Helper Component for Dropdown Items
-const TimeframeMenuItem: React.FC<{ 
-    tf: string; 
-    active: boolean; 
-    isFavorite: boolean; 
-    onSelect: () => void;
-    onToggleFav: () => void;
-}> = ({ tf, active, isFavorite, onSelect, onToggleFav }) => (
-    <div className={clsx(
-        "flex items-center justify-between px-3 py-1.5 cursor-pointer text-sm group transition-colors",
-        active ? "bg-primary text-white" : "hover:bg-text/5 text-text"
-    )}>
-        <span onClick={onSelect} className="flex-1 font-medium">{tf}</span>
-        <button 
-            onClick={(e) => {
-                e.stopPropagation();
-                onToggleFav();
-            }}
-            className={clsx(
-                "p-0.5 rounded transition-colors hover:bg-text/10",
-                isFavorite ? "text-yellow-500 fill-current" : "text-border hover:text-muted"
-            )}
-        >
-            <Star size={12} fill={isFavorite ? "currentColor" : "none"} />
-        </button>
-    </div>
-);

@@ -13,10 +13,8 @@ import {
   Eye,
   Star,
   Trash2,
-  ChevronRight
 } from 'lucide-react';
 import clsx from 'clsx';
-import { DrawingToolType } from '../../types';
 
 interface ToolButtonProps {
   active?: boolean;
@@ -31,8 +29,10 @@ const ToolButton: React.FC<ToolButtonProps> = ({ active, onClick, icon, label, h
     onClick={onClick}
     title={label}
     className={clsx(
-      "w-10 h-10 flex items-center justify-center rounded transition-colors relative group",
-      active ? "text-primary bg-primary/10" : "text-muted hover:text-text hover:bg-text/5"
+      "w-10 h-10 flex items-center justify-center rounded-xl transition-all relative group mb-1",
+      active 
+        ? "text-primary bg-primary/10 shadow-[0_0_12px_rgba(34,211,238,0.2)] border border-primary/20" 
+        : "text-muted hover:text-text hover:bg-white/5 border border-transparent"
     )}
   >
     {icon}
@@ -43,119 +43,115 @@ const ToolButton: React.FC<ToolButtonProps> = ({ active, onClick, icon, label, h
     )}
     
     {/* Tooltip */}
-    <span className="absolute left-12 bg-surface border border-border px-2 py-1 rounded text-xs text-text opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+    <span className="absolute left-14 bg-[#1e293b]/90 backdrop-blur border border-border px-3 py-1.5 rounded-lg text-xs font-medium text-text opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-xl translate-x-1 group-hover:translate-x-0 duration-200">
         {label}
+        {/* Triangle Pointer */}
+        <div className="absolute top-1/2 -left-1 -mt-1 w-2 h-2 bg-[#1e293b]/90 border-l border-b border-border transform rotate-45" />
     </span>
   </button>
 );
 
 const Separator = () => (
-    <div className="w-6 h-px bg-border my-2 opacity-50" />
+    <div className="w-6 h-px bg-white/10 my-2" />
 );
 
 export const DrawingTools: React.FC = () => {
   const { state, setTool, toggleMagnet, toggleGrid } = useChart();
 
   return (
-    <>
+    <div className="flex flex-col w-full items-center pt-2">
       {/* 1. Cursor Mode */}
       <ToolButton 
         active={state.activeTool === 'crosshair'} 
         onClick={() => setTool('crosshair')} 
-        icon={<Crosshair size={20} />} 
+        icon={<Crosshair size={20} strokeWidth={1.5} />} 
         label="Cursor" 
       />
       
       <Separator />
 
       {/* 2. Drawing Tools Group */}
-      <div className="flex flex-col gap-1">
-        <ToolButton 
-            active={state.activeTool === 'trendline'} 
-            onClick={() => setTool('trendline')} 
-            icon={<TrendingUp size={20} />} 
-            label="Line Tools" 
-            hasArrow
-        />
-        <ToolButton 
-            active={state.activeTool === 'rectangle'} 
-            onClick={() => setTool('rectangle')} 
-            icon={<Square size={20} />} 
-            label="Shapes" 
-            hasArrow
-        />
-        <ToolButton 
-            active={state.activeTool === 'brush'} 
-            onClick={() => setTool('brush')} 
-            icon={<Brush size={20} />} 
-            label="Brush" 
-        />
-        <ToolButton 
-            active={state.activeTool === 'text'} 
-            onClick={() => setTool('text')} 
-            icon={<Type size={20} />} 
-            label="Text" 
-        />
-      </div>
+      <ToolButton 
+          active={state.activeTool === 'trendline'} 
+          onClick={() => setTool('trendline')} 
+          icon={<TrendingUp size={20} strokeWidth={1.5} />} 
+          label="Line Tools" 
+          hasArrow
+      />
+      <ToolButton 
+          active={state.activeTool === 'rectangle'} 
+          onClick={() => setTool('rectangle')} 
+          icon={<Square size={20} strokeWidth={1.5} />} 
+          label="Shapes" 
+          hasArrow
+      />
+      <ToolButton 
+          active={state.activeTool === 'brush'} 
+          onClick={() => setTool('brush')} 
+          icon={<Brush size={20} strokeWidth={1.5} />} 
+          label="Brush" 
+      />
+      <ToolButton 
+          active={state.activeTool === 'text'} 
+          onClick={() => setTool('text')} 
+          icon={<Type size={20} strokeWidth={1.5} />} 
+          label="Text" 
+      />
 
       <Separator />
 
       {/* 3. Advanced/Measurement Group */}
-      <div className="flex flex-col gap-1">
-        <ToolButton 
-            active={state.isMagnetMode} 
-            onClick={toggleMagnet} 
-            icon={<Magnet size={20} className={state.isMagnetMode ? "fill-current" : ""} />} 
-            label="Magnet Mode" 
-        />
-        <ToolButton 
-            active={state.activeTool === 'pencil'} 
-            onClick={() => setTool('pencil')} 
-            icon={<Pencil size={20} />} 
-            label="Continuous Drawing" 
-        />
-        <ToolButton 
-            active={state.activeTool === 'measure'} 
-            onClick={() => setTool('measure')} 
-            icon={<Ruler size={20} />} 
-            label="Measure" 
-        />
-      </div>
+      <ToolButton 
+          active={state.isMagnetMode} 
+          onClick={toggleMagnet} 
+          icon={<Magnet size={20} strokeWidth={1.5} className={state.isMagnetMode ? "fill-current" : ""} />} 
+          label="Magnet Mode" 
+      />
+      <ToolButton 
+          active={state.activeTool === 'pencil'} 
+          onClick={() => setTool('pencil')} 
+          icon={<Pencil size={20} strokeWidth={1.5} />} 
+          label="Continuous Drawing" 
+      />
+      <ToolButton 
+          active={state.activeTool === 'measure'} 
+          onClick={() => setTool('measure')} 
+          icon={<Ruler size={20} strokeWidth={1.5} />} 
+          label="Measure" 
+      />
 
       {/* Spacer to push bottom tools down */}
-      <div className="flex-1" />
+      <div className="flex-1 min-h-[20px]" />
 
       {/* 4. Utility Group (Lock, Favorites, Hide) */}
-      <div className="flex flex-col gap-1 mb-2">
-         <ToolButton 
-            active={false}
-            onClick={() => {}} 
-            icon={<Lock size={20} />} 
-            label="Lock All Drawings" 
-        />
-        <ToolButton 
-            active={true} 
-            onClick={() => {}} 
-            icon={<Star size={20} className="fill-current text-yellow-500" />} 
-            label="Favorites Bar" 
-        />
-        <ToolButton 
-            active={!state.showGrid}
-            onClick={toggleGrid} 
-            icon={<Eye size={20} />} 
-            label="Hide All Drawings" 
-        />
-      </div>
+      <ToolButton 
+          active={false}
+          onClick={() => {}} 
+          icon={<Lock size={20} strokeWidth={1.5} />} 
+          label="Lock All Drawings" 
+      />
+      <ToolButton 
+          active={true} 
+          onClick={() => {}} 
+          icon={<Star size={20} className="fill-current text-yellow-500" strokeWidth={1.5} />} 
+          label="Favorites Bar" 
+      />
+      <ToolButton 
+          active={!state.showGrid}
+          onClick={toggleGrid} 
+          icon={<Eye size={20} strokeWidth={1.5} />} 
+          label="Hide All Drawings" 
+      />
 
       {/* 5. Delete */}
-      <div className="flex flex-col gap-2 mb-2">
+      <div className="mt-2 mb-2">
         <ToolButton 
             active={false}
             onClick={() => console.log('Delete All')} 
-            icon={<Trash2 size={20} />} 
+            icon={<Trash2 size={20} strokeWidth={1.5} />} 
             label="Remove Objects" 
         />
       </div>
-    </>
+    </div>
   );
 };
