@@ -1,16 +1,21 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ChartState, DrawingToolType, Timeframe } from '../types';
-import { DEFAULT_SYMBOL, DEFAULT_TIMEFRAME } from '../constants';
+import { ChartState, DrawingToolType, Timeframe, AppSkin } from '../types';
+import { DEFAULT_SYMBOL, DEFAULT_TIMEFRAME, SKIN_CONFIG } from '../constants';
 
 interface ChartContextType {
   state: ChartState;
+  isSearchOpen: boolean;
+  isDataExplorerOpen: boolean;
   setSymbol: (symbol: string) => void;
   setInterval: (interval: Timeframe) => void;
   setTool: (tool: DrawingToolType) => void;
+  setSkin: (skin: AppSkin) => void;
   toggleMagnet: () => void;
   toggleChartType: () => void;
   toggleGrid: () => void;
   toggleTheme: () => void;
+  toggleSearch: () => void;
+  toggleDataExplorer: () => void;
 }
 
 const ChartContext = createContext<ChartContextType | undefined>(undefined);
@@ -23,8 +28,12 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     isMagnetMode: false,
     activeTool: 'crosshair',
     showGrid: true,
-    theme: 'dark'
+    theme: 'dark',
+    skin: 'default'
   });
+
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isDataExplorerOpen, setIsDataExplorerOpen] = useState(false);
 
   // Ensure DOM matches initial state
   useEffect(() => {
@@ -35,27 +44,90 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, []);
 
+  // Skin Application Effect - UNIFIED
+  useEffect(() => {
+    const skinData = SKIN_CONFIG[state.skin];
+    if (skinData) {
+        const root = document.documentElement;
+        
+        // 1. Apply CSS Variables
+        Object.entries(skinData.css).forEach(([key, value]) => {
+            root.style.setProperty(key, value as string);
+        });
+
+        // 2. Sync Theme Class (Important for Tailwind Dark Mode utils)
+        // If the skin is light type, remove .dark class. If dark, add it.
+        if (skinData.type === 'light') {
+            root.classList.remove('dark');
+        } else {
+            root.classList.add('dark');
+        }
+    }
+  }, [state.skin]);
+
+  // Sync state.theme when DOM class changes via Skin (to keep toggle button in sync)
+  useEffect(() => {
+      const skinData = SKIN_CONFIG[state.skin];
+      if (skinData) {
+          setState(prev => ({
+              ...prev,
+              theme: skinData.type === 'light' ? 'light' : 'dark'
+          }));
+      }
+  }, [state.skin]);
+
   const setSymbol = (symbol: string) => setState(prev => ({ ...prev, symbol }));
   const setInterval = (interval: Timeframe) => setState(prev => ({ ...prev, interval }));
   const setTool = (activeTool: DrawingToolType) => setState(prev => ({ ...prev, activeTool }));
+  
+  const setSkin = (skin: AppSkin) => setState(prev => ({ ...prev, skin }));
+  
   const toggleMagnet = () => setState(prev => ({ ...prev, isMagnetMode: !prev.isMagnetMode }));
   const toggleChartType = () => setState(prev => ({ ...prev, chartType: prev.chartType === 'candle' ? 'line' : 'candle' }));
   const toggleGrid = () => setState(prev => ({ ...prev, showGrid: !prev.showGrid }));
   
+  const toggleSearch = () => setIsSearchOpen(prev => !prev);
+  const toggleDataExplorer = () => setIsDataExplorerOpen(prev => !prev);
+
   const toggleTheme = () => {
     setState(prev => {
       const newTheme = prev.theme === 'dark' ? 'light' : 'dark';
-      if (newTheme === 'dark') {
-        document.documentElement.classList.add('dark');
+      
+      // Auto-select a default skin for the target theme
+      let newSkin: AppSkin = prev.skin;
+      
+      if (newTheme === 'light') {
+          // If switching to light, force Polar if currently on a dark skin
+          if (SKIN_CONFIG[prev.skin].type === 'dark') {
+              newSkin = 'polar';
+          }
       } else {
-        document.documentElement.classList.remove('dark');
+          // If switching to dark, force Default if currently on a light skin
+          if (SKIN_CONFIG[prev.skin].type === 'light') {
+              newSkin = 'default';
+          }
       }
-      return { ...prev, theme: newTheme };
+
+      return { ...prev, theme: newTheme, skin: newSkin };
     });
   };
 
   return (
-    <ChartContext.Provider value={{ state, setSymbol, setInterval, setTool, toggleMagnet, toggleChartType, toggleGrid, toggleTheme }}>
+    <ChartContext.Provider value={{ 
+        state, 
+        isSearchOpen, 
+        isDataExplorerOpen,
+        setSymbol, 
+        setInterval, 
+        setTool, 
+        setSkin, 
+        toggleMagnet, 
+        toggleChartType, 
+        toggleGrid, 
+        toggleTheme, 
+        toggleSearch,
+        toggleDataExplorer 
+    }}>
       {children}
     </ChartContext.Provider>
   );

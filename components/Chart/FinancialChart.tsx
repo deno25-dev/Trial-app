@@ -3,7 +3,7 @@ import { createChart, IChartApi, ISeriesApi, CandlestickData, HistogramData, Col
 import { useQuery } from '@tanstack/react-query';
 import { useChart } from '../../context/ChartContext';
 import { TauriService } from '../../services/tauriService';
-import { THEME_CONFIG } from '../../constants';
+import { SKIN_CONFIG, LIGHT_THEME_CHART } from '../../constants';
 import { Telemetry } from '../../utils/telemetry';
 import { OhlcData } from '../../types';
 
@@ -43,49 +43,55 @@ export const FinancialChart: React.FC = () => {
     refetchOnWindowFocus: false,
   });
 
+  // Resolve current theme colors
+  const currentTheme = useMemo(() => {
+      if (state.theme === 'light') {
+          return LIGHT_THEME_CHART;
+      }
+      return SKIN_CONFIG[state.skin].chart;
+  }, [state.theme, state.skin]);
+
   // --- CHART INITIALIZATION ---
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    Telemetry.info('UI', `Initializing Chart Engine`, { symbol: state.symbol, theme: state.theme });
-
-    const initialTheme = THEME_CONFIG[state.theme];
+    Telemetry.info('UI', `Initializing Chart Engine`, { symbol: state.symbol, theme: state.theme, skin: state.skin });
 
     // Initialize Chart
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
       layout: {
-        background: { type: ColorType.Solid, color: initialTheme.background },
-        textColor: initialTheme.text,
+        background: { type: ColorType.Solid, color: currentTheme.background },
+        textColor: currentTheme.text,
         fontFamily: "'Inter', sans-serif", // Set chart font to Inter
       },
       grid: {
-        vertLines: { color: initialTheme.grid, visible: state.showGrid },
-        horzLines: { color: initialTheme.grid, visible: state.showGrid },
+        vertLines: { color: currentTheme.grid, visible: state.showGrid },
+        horzLines: { color: currentTheme.grid, visible: state.showGrid },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: {
             width: 1,
-            color: initialTheme.crosshair,
+            color: currentTheme.crosshair,
             style: LineStyle.Dashed,
-            labelBackgroundColor: initialTheme.crosshair,
+            labelBackgroundColor: currentTheme.crosshair,
         },
         horzLine: {
             width: 1,
-            color: initialTheme.crosshair,
+            color: currentTheme.crosshair,
             style: LineStyle.Dashed,
-            labelBackgroundColor: initialTheme.crosshair,
+            labelBackgroundColor: currentTheme.crosshair,
         },
       },
       timeScale: {
-        borderColor: initialTheme.grid,
+        borderColor: currentTheme.grid,
         timeVisible: true,
         secondsVisible: false,
       },
       rightPriceScale: {
-        borderColor: initialTheme.grid,
+        borderColor: currentTheme.grid,
       },
     });
 
@@ -108,11 +114,11 @@ export const FinancialChart: React.FC = () => {
 
     // 2. Add Candlestick Series
     const series = chart.addCandlestickSeries({
-      upColor: initialTheme.candleUp,
-      downColor: initialTheme.candleDown,
+      upColor: currentTheme.candleUp,
+      downColor: currentTheme.candleDown,
       borderVisible: false,
-      wickUpColor: initialTheme.wickUp,
-      wickDownColor: initialTheme.wickDown,
+      wickUpColor: currentTheme.wickUp,
+      wickDownColor: currentTheme.wickDown,
     });
     seriesRef.current = series;
 
@@ -196,7 +202,6 @@ export const FinancialChart: React.FC = () => {
           });
           
           const isUp = d.close >= d.open;
-          const currentTheme = THEME_CONFIG[state.theme];
           
           volumes.push({
               time,
@@ -219,8 +224,9 @@ export const FinancialChart: React.FC = () => {
           Telemetry.debug('Performance', 'Chart Rendered', { duration: `${perf.toFixed(2)}ms` });
       }
     }
-  }, [chartData, state.theme]); 
+  }, [chartData, currentTheme]); 
 
+  // Grid Sync
   useEffect(() => {
     if (chartApiRef.current) {
       chartApiRef.current.applyOptions({
@@ -232,9 +238,9 @@ export const FinancialChart: React.FC = () => {
     }
   }, [state.showGrid]);
 
+  // Theme Sync
   useEffect(() => {
     if (chartApiRef.current && seriesRef.current && volumeSeriesRef.current) {
-        const currentTheme = THEME_CONFIG[state.theme];
         chartApiRef.current.applyOptions({
             layout: {
                 background: { type: ColorType.Solid, color: currentTheme.background },
@@ -258,16 +264,15 @@ export const FinancialChart: React.FC = () => {
             wickUpColor: currentTheme.wickUp,
             wickDownColor: currentTheme.wickDown,
         });
-        Telemetry.info('UI', 'Theme Switched', { theme: state.theme });
+        Telemetry.info('UI', 'Theme Switched', { theme: state.theme, skin: state.skin });
     }
-  }, [state.theme]);
+  }, [currentTheme, state.theme, state.skin]);
 
   return (
-    <div className="w-full h-full relative group bg-background">
+    <div className="w-full h-full relative group bg-background transition-colors duration-300">
       <div ref={chartContainerRef} className="w-full h-full" />
       
       {/* --- PROFESSIONAL STATUS LINE OVERLAY --- */}
-      {/* Changed font-mono to font-sans + tabular-nums for a cleaner, aligned look */}
       {legend && (
         <div className="absolute top-2 left-3 z-20 flex flex-wrap items-center gap-4 text-[11px] select-none pointer-events-none font-sans font-medium tabular-nums">
             {/* Primary Status Info */}
@@ -288,24 +293,24 @@ export const FinancialChart: React.FC = () => {
             <div className="hidden md:flex items-center gap-4 ml-2">
                 <div className="flex gap-1.5">
                     <span className="text-muted font-medium">O</span>
-                    <span className="text-amber-500 font-medium tracking-wide">{legend.open}</span>
+                    <span className="text-primary font-medium tracking-wide">{legend.open}</span>
                 </div>
                 <div className="flex gap-1.5">
                     <span className="text-muted font-medium">H</span>
-                    <span className="text-amber-500 font-medium tracking-wide">{legend.high}</span>
+                    <span className="text-primary font-medium tracking-wide">{legend.high}</span>
                 </div>
                 <div className="flex gap-1.5">
                     <span className="text-muted font-medium">L</span>
-                    <span className="text-amber-500 font-medium tracking-wide">{legend.low}</span>
+                    <span className="text-primary font-medium tracking-wide">{legend.low}</span>
                 </div>
                 <div className="flex gap-1.5">
                     <span className="text-muted font-medium">C</span>
-                    <span className="text-amber-500 font-medium tracking-wide">{legend.close}</span>
+                    <span className="text-primary font-medium tracking-wide">{legend.close}</span>
                 </div>
                 <span className="text-border/50">|</span>
                 <div className="flex gap-1.5">
                     <span className="text-muted font-medium">Vol</span>
-                    <span className="text-amber-500 font-medium tracking-wide">{legend.volume}</span>
+                    <span className="text-primary font-medium tracking-wide">{legend.volume}</span>
                 </div>
             </div>
         </div>

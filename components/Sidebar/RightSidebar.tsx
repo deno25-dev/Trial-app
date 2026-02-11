@@ -9,10 +9,16 @@ import {
   Settings,
   Sun,
   Moon,
-  Monitor 
+  Monitor,
+  Palette,
+  ChevronRight,
+  Check,
+  Grid3X3
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useChart } from '../../context/ChartContext';
+import { SKIN_CONFIG } from '../../constants';
+import { AppSkin } from '../../types';
 
 interface SidebarButtonProps {
   icon: React.ReactNode;
@@ -38,7 +44,7 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({ icon, label, onClick, act
 );
 
 export const RightSidebar: React.FC = () => {
-  const { state, toggleTheme } = useChart();
+  const { state, toggleTheme, setSkin, toggleGrid, toggleDataExplorer, isDataExplorerOpen } = useChart();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -63,8 +69,13 @@ export const RightSidebar: React.FC = () => {
         {/* 1. Tools */}
         <SidebarButton icon={<Briefcase size={20} />} label="Tools" />
         
-        {/* 2. Data Explorer */}
-        <SidebarButton icon={<Database size={20} />} label="Data explorer" />
+        {/* 2. Data Explorer (Wired to Context) */}
+        <SidebarButton 
+            icon={<Database size={20} />} 
+            label="Data Explorer" 
+            onClick={toggleDataExplorer}
+            active={isDataExplorerOpen}
+        />
         
         {/* 3. Chart Layout */}
         <SidebarButton icon={<LayoutTemplate size={20} />} label="Chart layout" />
@@ -74,6 +85,14 @@ export const RightSidebar: React.FC = () => {
         
         {/* 5. Trade */}
         <SidebarButton icon={<ArrowRightLeft size={20} />} label="Trade" />
+
+        {/* 6. Grid Toggle */}
+        <SidebarButton 
+            icon={<Grid3X3 size={20} />} 
+            label="Toggle Grid" 
+            onClick={toggleGrid}
+            active={state.showGrid}
+        />
       </div>
 
       {/* Spacer */}
@@ -81,14 +100,14 @@ export const RightSidebar: React.FC = () => {
 
       {/* Bottom Actions */}
       <div className="flex flex-col gap-1 mb-2 w-full items-center">
-        {/* 6. Reload */}
+        {/* 7. Reload */}
         <SidebarButton 
             icon={<RefreshCw size={20} />} 
             label="Reload" 
             onClick={() => window.location.reload()} 
         />
         
-        {/* 7. Settings with Dropdown */}
+        {/* 8. Settings with Dropdown */}
         <div className="relative" ref={settingsRef}>
             <SidebarButton 
                 icon={<Settings size={20} />} 
@@ -100,12 +119,10 @@ export const RightSidebar: React.FC = () => {
             {isSettingsOpen && (
                 <div className="absolute right-full bottom-0 mr-2 w-56 bg-surface border border-border shadow-xl rounded-md overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-bottom-right z-50">
                   <div className="p-1.5 flex flex-col gap-1">
-                    {/* Theme Toggle */}
+                    
+                    {/* Theme Toggle (PRESERVED) */}
                     <button 
-                      onClick={() => {
-                        toggleTheme();
-                        // Optional: keep open for multiple changes or close immediately
-                      }}
+                      onClick={() => toggleTheme()}
                       className="w-full flex items-center justify-between px-3 py-2 text-sm text-text hover:bg-text/5 rounded transition-colors group"
                     >
                       <div className="flex items-center gap-2">
@@ -117,8 +134,44 @@ export const RightSidebar: React.FC = () => {
                       </span>
                     </button>
 
+                    {/* Skins Submenu (Now visible in all modes) */}
+                    <div className="relative group/skin">
+                        <button className="w-full flex items-center justify-between px-3 py-2 text-sm text-text hover:bg-text/5 rounded transition-colors">
+                            <div className="flex items-center gap-2">
+                                <Palette size={16} className="text-muted" />
+                                <span>Skins</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <span className="text-xs text-muted">{SKIN_CONFIG[state.skin].name}</span>
+                                <ChevronRight size={14} className="text-muted" />
+                            </div>
+                        </button>
+                        
+                        {/* Flyout Menu */}
+                        <div className="absolute right-full bottom-0 mr-1 w-32 bg-surface border border-border shadow-xl rounded-md overflow-hidden hidden group-hover/skin:block">
+                            <div className="p-1 flex flex-col gap-0.5">
+                                {(Object.keys(SKIN_CONFIG) as AppSkin[]).map((skinKey) => (
+                                    <button
+                                        key={skinKey}
+                                        onClick={() => setSkin(skinKey)}
+                                        className={clsx(
+                                            "w-full flex items-center justify-between px-3 py-1.5 text-xs rounded transition-colors",
+                                            state.skin === skinKey 
+                                                ? "bg-primary/10 text-primary font-medium" 
+                                                : "text-text hover:bg-text/5"
+                                        )}
+                                    >
+                                        <span>{SKIN_CONFIG[skinKey].name}</span>
+                                        {state.skin === skinKey && <Check size={12} />}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="h-px bg-border my-1" />
 
+                    {/* System Monitor (PRESERVED) */}
                     <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-text hover:bg-text/5 rounded transition-colors">
                       <Monitor size={16} />
                       <span>System Monitor</span>

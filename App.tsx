@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { MainLayout } from './components/Layout/MainLayout';
 import { ChartProvider } from './context/ChartContext';
+import { MarketProvider } from './context/MarketContext';
 import { DeveloperTools } from './components/DeveloperTools';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AssetSearchOverlay } from './components/Overlays/AssetSearchOverlay';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Initialize the Query Client for managing UI state and server caching
@@ -35,11 +37,17 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ChartProvider>
-          {/* Removed font-mono from here to allow Inter to shine in UI elements */}
-          <div className="h-screen w-screen bg-background text-text flex flex-col overflow-hidden">
-            <MainLayout />
-            {isDevToolsOpen && <DeveloperTools onClose={() => setIsDevToolsOpen(false)} />}
-          </div>
+          <MarketProvider>
+            {/* Removed font-mono from here to allow Inter to shine in UI elements */}
+            <div className="h-screen w-screen bg-background text-text flex flex-col overflow-hidden relative">
+              <MainLayout />
+              
+              {/* Global Overlays */}
+              <AssetSearchOverlay />
+              
+              {isDevToolsOpen && <DeveloperTools onClose={() => setIsDevToolsOpen(false)} />}
+            </div>
+          </MarketProvider>
         </ChartProvider>
       </QueryClientProvider>
     </ErrorBoundary>

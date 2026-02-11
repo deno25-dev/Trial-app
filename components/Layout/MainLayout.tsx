@@ -4,6 +4,8 @@ import { DrawingTools } from '../Sidebar/DrawingTools';
 import { RightSidebar } from '../Sidebar/RightSidebar';
 import { MarketOverview } from '../Panels/MarketOverview';
 import { FinancialChart } from '../Chart/FinancialChart';
+import { DataExplorerSidebar } from '../Sidebar/DataExplorerSidebar';
+import { useChart } from '../../context/ChartContext';
 import clsx from 'clsx';
 
 export const MainLayout: React.FC = () => {
@@ -11,6 +13,9 @@ export const MainLayout: React.FC = () => {
   const [panelHeight, setPanelHeight] = useState(256); // Default 256px
   const [isDragging, setIsDragging] = useState(false);
   
+  // Use ChartContext for Data Explorer State
+  const { isDataExplorerOpen } = useChart();
+
   // Refs for Event Listeners (prevents stale closures/dependency trashing)
   const isPanelOpenRef = useRef(isPanelOpen);
   const dragStartY = useRef(0);
@@ -88,6 +93,14 @@ export const MainLayout: React.FC = () => {
         <div className="w-14 border-r border-border bg-surface flex flex-col items-center py-4 z-20 shrink-0">
           <DrawingTools />
         </div>
+
+        {/* Lane 2: Data Explorer Panel (Slide-out or Fixed) */}
+        {/* Mandate 0.11.3: Opens left side panel. We place it here to simulate sidebar logic */}
+        {isDataExplorerOpen && (
+            <div className="w-64 border-r border-border bg-surface z-10 shrink-0 animate-in slide-in-from-left duration-200">
+                <DataExplorerSidebar />
+            </div>
+        )}
 
         {/* Main Workspace */}
         <div className="flex-1 flex flex-col relative bg-background min-w-0">

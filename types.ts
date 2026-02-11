@@ -11,6 +11,8 @@ export interface OhlcData {
   volume: number;
 }
 
+export type AppSkin = 'default' | 'oled' | 'titanium' | 'polar' | 'forbidden-velvet' | 'chocolate-dream' | 'fairies-nest' | 'goldrush-planet' | 'rare-earth';
+
 export interface ChartState {
   symbol: string;
   interval: Timeframe;
@@ -19,15 +21,20 @@ export interface ChartState {
   activeTool: DrawingToolType;
   showGrid: boolean;
   theme: 'dark' | 'light'; // Mandate 0.7: Theme support
+  skin: AppSkin;
 }
 
 export type DrawingToolType = 'cursor' | 'crosshair' | 'trendline' | 'ray' | 'horizontal_line' | 'vertical_line' | 'rectangle' | 'fib_retracement' | 'brush' | 'text' | 'pencil' | 'measure';
 
-export interface MarketTicker {
-  symbol: string;
-  price: number;
-  change24h: number;
-  volume24h: number;
+// Lane 4: Market Stream Data (Binance MiniTicker Format)
+export interface MiniTicker {
+  s: string; // Symbol
+  c: string; // Close Price
+  o: string; // Open Price
+  h: string; // High Price
+  l: string; // Low Price
+  v: string; // Volume
+  q: string; // Quote Volume
 }
 
 // Mandate 0.31: Database metadata structure
@@ -37,6 +44,37 @@ export interface StickyNote {
   position: { x: number; y: number };
   size: { w: number; h: number };
   color: string;
+  lastModified: number;
+}
+
+// Lane 3: Persistence Objects
+export interface ChartLayout {
+  id: string;
+  name: string;
+  symbol: string;
+  interval: Timeframe;
+  drawings: any[]; // Serialized drawings
+  lastModified: number;
+}
+
+// Mandate 0.11.2: Asset Library Metadata
+export interface AssetMetadata {
+  id: number;
+  symbol: string;
+  path: string;
+  size: string;
+  lastModified: number;
+  type: 'csv' | 'folder';
+}
+
+// Mandate 0.11.3: Data Explorer File System Item
+export interface FileSystemItem {
+  name: string;
+  type: 'dir' | 'file';
+  path: string;
+  extension?: string;
+  size?: string;
+  lastModified?: number;
 }
 
 // --- DATABASE SCHEMA (Drift/SQL Equivalent) ---

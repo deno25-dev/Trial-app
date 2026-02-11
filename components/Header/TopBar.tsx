@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useChart } from '../../context/ChartContext';
-import { FAVORITE_TIMEFRAMES, ALL_TIMEFRAMES } from '../../constants';
-import { Timeframe } from '../../types';
+import { FAVORITE_TIMEFRAMES, ALL_TIMEFRAMES, SKIN_CONFIG } from '../../constants';
+import { Timeframe, AppSkin } from '../../types';
 import { 
   Search, 
   LayoutGrid, 
@@ -13,17 +13,23 @@ import {
   Star,
   Clock,
   CandlestickChart,
-  LineChart
+  LineChart,
+  Palette,
+  Check
 } from 'lucide-react';
 import clsx from 'clsx';
 
 export const TopBar: React.FC = () => {
-  const { state, setInterval, toggleChartType } = useChart();
+  const { state, setInterval, toggleChartType, setSkin, toggleSearch } = useChart();
   
   // Timeframe Dropdown & Favorites State
   const [isTimeframeOpen, setIsTimeframeOpen] = useState(false);
   const [favoriteIntervals, setFavoriteIntervals] = useState<Timeframe[]>(FAVORITE_TIMEFRAMES);
   const timeframeRef = useRef<HTMLDivElement>(null);
+
+  // Skins Dropdown State
+  const [isSkinMenuOpen, setIsSkinMenuOpen] = useState(false);
+  const skinMenuRef = useRef<HTMLDivElement>(null);
 
   // Handle click outside for dropdowns
   useEffect(() => {
@@ -31,15 +37,18 @@ export const TopBar: React.FC = () => {
       if (timeframeRef.current && !timeframeRef.current.contains(event.target as Node)) {
         setIsTimeframeOpen(false);
       }
+      if (skinMenuRef.current && !skinMenuRef.current.contains(event.target as Node)) {
+        setIsSkinMenuOpen(false);
+      }
     };
 
-    if (isTimeframeOpen) {
+    if (isTimeframeOpen || isSkinMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isTimeframeOpen]);
+  }, [isTimeframeOpen, isSkinMenuOpen]);
 
   const toggleFavorite = (tf: Timeframe) => {
     setFavoriteIntervals(prev => {
@@ -60,7 +69,11 @@ export const TopBar: React.FC = () => {
       <div className="flex items-center gap-1 md:gap-2">
         
         {/* 1. Search */}
-        <div className="w-10 h-10 flex items-center justify-center rounded hover:bg-text/5 cursor-pointer text-muted hover:text-text transition-colors">
+        <div 
+            onClick={toggleSearch}
+            className="w-10 h-10 flex items-center justify-center rounded hover:bg-text/5 cursor-pointer text-muted hover:text-text transition-colors"
+            title="Search Assets (Cmd+K)"
+        >
             <Search size={20} />
         </div>
 
@@ -138,7 +151,7 @@ export const TopBar: React.FC = () => {
                         className={clsx(
                             "px-2.5 py-1 text-sm font-bold rounded transition-colors",
                             state.interval === tf 
-                            ? "text-primary bg-primary/5" 
+                            ? "text-white bg-primary shadow-sm" // Solid Blue for active
                             : "text-muted hover:text-text hover:bg-text/5"
                         )}
                     >
@@ -192,8 +205,46 @@ export const TopBar: React.FC = () => {
         </div>
       </div>
 
-      {/* --- Right Section: Layout --- */}
+      {/* --- Right Section: Layout & Skins --- */}
       <div className="flex items-center gap-2">
+        {/* Skins Selector (Visible in all modes) */}
+        <div className="relative" ref={skinMenuRef}>
+            <button
+                onClick={() => setIsSkinMenuOpen(!isSkinMenuOpen)}
+                className={clsx(
+                    "p-2 rounded transition-colors",
+                    isSkinMenuOpen ? "bg-text/10 text-text" : "hover:bg-text/5 text-muted hover:text-text"
+                )}
+                title="Themes / Skins"
+            >
+                <Palette size={18} strokeWidth={1.5} />
+            </button>
+            
+            {isSkinMenuOpen && (
+                <div className="absolute top-full right-0 mt-1 w-48 bg-surface border border-border shadow-xl rounded-md overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+                    <div className="px-3 py-2 text-[10px] font-bold text-muted/50 uppercase tracking-widest border-b border-border/50">
+                        Interface Skins
+                    </div>
+                    {Object.keys(SKIN_CONFIG).map((skinKey) => (
+                        <button
+                            key={skinKey}
+                            onClick={() => {
+                                setSkin(skinKey as AppSkin);
+                                setIsSkinMenuOpen(false);
+                            }}
+                            className={clsx(
+                                "w-full flex items-center justify-between px-3 py-2 text-sm transition-colors",
+                                state.skin === skinKey ? "bg-primary/10 text-primary" : "text-text hover:bg-text/5"
+                            )}
+                        >
+                            <span>{SKIN_CONFIG[skinKey].name}</span>
+                            {state.skin === skinKey && <Check size={14} />}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+
         <button className="p-2 hover:bg-text/5 rounded text-muted hover:text-text transition-colors">
             <LayoutGrid size={18} strokeWidth={1.5} />
         </button>
@@ -212,7 +263,7 @@ const TimeframeMenuItem: React.FC<{
 }> = ({ tf, active, isFavorite, onSelect, onToggleFav }) => (
     <div className={clsx(
         "flex items-center justify-between px-3 py-1.5 cursor-pointer text-sm group transition-colors",
-        active ? "bg-primary/10 text-primary" : "hover:bg-text/5 text-text"
+        active ? "bg-primary text-white" : "hover:bg-text/5 text-text"
     )}>
         <span onClick={onSelect} className="flex-1 font-medium">{tf}</span>
         <button 

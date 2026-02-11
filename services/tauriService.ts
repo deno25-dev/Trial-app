@@ -1,4 +1,4 @@
-import { OhlcData, TradeLog } from '../types';
+import { OhlcData, TradeLog, AssetMetadata, FileSystemItem, StickyNote, ChartLayout, MiniTicker } from '../types';
 import { BinaryParser } from '../utils/binaryParser';
 import { Telemetry } from '../utils/telemetry';
 
@@ -6,10 +6,45 @@ import { Telemetry } from '../utils/telemetry';
 type InvokeArgs = Record<string, unknown>;
 
 // --- MOCK DATABASE STATE (For "Native" Simulation inside Browser) ---
+// Initial seed data if LocalStorage is empty
 const MOCK_SQLITE_DB: TradeLog[] = [
     { id: 1, timestamp: Date.now() - 100000, symbol: "BTCUSDT", price: 64100, volume: 0.5, side: 'buy', indicators: { rsi: 30 } },
     { id: 2, timestamp: Date.now() - 50000, symbol: "BTCUSDT", price: 64200, volume: 0.1, side: 'sell', indicators: { rsi: 70 } }
 ];
+
+// --- MOCK ASSET LIBRARY (Mandate 0.11.2) ---
+const MOCK_ASSETS: AssetMetadata[] = [
+  { id: 1, symbol: "BTCUSDT", path: "/Assets/Crypto/BTCUSDT.csv", size: "128 MB", lastModified: Date.now() - 1000000, type: 'csv' },
+  { id: 2, symbol: "ETHUSDT", path: "/Assets/Crypto/ETHUSDT.csv", size: "85 MB", lastModified: Date.now() - 2000000, type: 'csv' },
+  { id: 3, symbol: "SOLUSDT", path: "/Assets/Crypto/SOLUSDT.csv", size: "45 MB", lastModified: Date.now() - 500000, type: 'csv' },
+  { id: 4, symbol: "EURUSD", path: "/Assets/Forex/EURUSD.csv", size: "2.1 GB", lastModified: Date.now() - 86400000, type: 'csv' },
+  { id: 5, symbol: "GBPUSD", path: "/Assets/Forex/GBPUSD.csv", size: "1.8 GB", lastModified: Date.now() - 86400000, type: 'csv' },
+  { id: 6, symbol: "AAPL", path: "/Assets/Stocks/AAPL.csv", size: "400 MB", lastModified: Date.now() - 3600000, type: 'csv' },
+  { id: 7, symbol: "NVDA", path: "/Assets/Stocks/NVDA.csv", size: "520 MB", lastModified: Date.now() - 3600000, type: 'csv' },
+  { id: 8, symbol: "TSLA", path: "/Assets/Stocks/TSLA.csv", size: "380 MB", lastModified: Date.now() - 3600000, type: 'csv' },
+  { id: 9, symbol: "SPX", path: "/Assets/Indices/SPX.csv", size: "12 GB", lastModified: Date.now() - 100000, type: 'csv' },
+  { id: 10, symbol: "NDX", path: "/Assets/Indices/NDX.csv", size: "8 GB", lastModified: Date.now() - 100000, type: 'csv' },
+];
+
+// --- MOCK FILE SYSTEM FOR DATA EXPLORER (Mandate 0.11.3) ---
+const MOCK_FS: Record<string, FileSystemItem[]> = {
+    '/mnt/external': [
+        { name: 'Backtests', type: 'dir', path: '/mnt/external/Backtests' },
+        { name: 'Raw_Data', type: 'dir', path: '/mnt/external/Raw_Data' },
+        { name: 'Exported_Trades.json', type: 'file', path: '/mnt/external/Exported_Trades.json', size: '2 KB', extension: 'json' },
+    ],
+    '/mnt/external/Backtests': [
+        { name: '2024', type: 'dir', path: '/mnt/external/Backtests/2024' },
+        { name: '2023', type: 'dir', path: '/mnt/external/Backtests/2023' },
+    ],
+    '/mnt/external/Backtests/2024': [
+        { name: 'Strategy_A_Optimized.csv', type: 'file', path: '/mnt/external/Backtests/2024/Strategy_A_Optimized.csv', size: '45 MB', extension: 'csv' },
+        { name: 'Strategy_B_Fail.csv', type: 'file', path: '/mnt/external/Backtests/2024/Strategy_B_Fail.csv', size: '120 MB', extension: 'csv' },
+    ],
+    '/mnt/external/Raw_Data': [
+        { name: 'BTC_Ticks_2024.csv', type: 'file', path: '/mnt/external/Raw_Data/BTC_Ticks_2024.csv', size: '12 GB', extension: 'csv' },
+    ]
+};
 
 // --- STATE MANAGEMENT FOR SINGLETON/BACKOFF (Mandate 0.9) ---
 let marketOverviewPromise: Promise<any[]> | null = null;
@@ -40,36 +75,121 @@ export const TauriService = {
         Telemetry.warn('Performance', `Slow IPC Response: ${command}`, { latency: `${latency.toFixed(2)}ms` });
     }
 
-    // --- CHARTING COMMANDS ---
+    // --- CHARTING COMMANDS (Lane 2 - Read Only) ---
     if (command === 'plugin:polars|load_history') {
         const result = MockBackend.generateBinaryCandles(args?.symbol as string, args?.interval as string);
         Telemetry.success('Bridge', `Loaded History for ${args?.symbol}`, { bytes: result.length });
         return result as unknown as T;
     }
-    if (command === 'get_market_overview') {
-        // Randomly simulate a network failure for telemetry testing (Increased rate for demo of backoff)
-        if (Math.random() < 0.2) {
-             const err = new Error("Connection Reset by Peer");
-             // Log handled in wrapper
-             throw err;
+    
+    // --- ASSET LIBRARY COMMANDS (Lane 1 - Read Only) ---
+    if (command === 'plugin:assets|scan') {
+        Telemetry.info('System', 'Scanning ./Assets directory...');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        Telemetry.success('Database', `Asset Scan Complete. Found ${MOCK_ASSETS.length} items.`);
+        return MOCK_ASSETS as unknown as T;
+    }
+
+    if (command === 'plugin:assets|get_all') {
+        return MOCK_ASSETS as unknown as T;
+    }
+
+    // --- DATA EXPLORER COMMANDS (Lane 2 - Read Only) ---
+    if (command === 'plugin:fs|open_directory_dialog') {
+        Telemetry.info('System', 'Opening System File Dialog...');
+        await new Promise(resolve => setTimeout(resolve, 800));
+        const mockPath = '/mnt/external';
+        Telemetry.success('System', `User selected: ${mockPath}`);
+        return mockPath as unknown as T;
+    }
+
+    if (command === 'plugin:fs|list_directory') {
+        const path = args?.path as string;
+        const items = MOCK_FS[path] || [];
+        Telemetry.debug('System', `Listing Directory: ${path}`, { count: items.length });
+        return items as unknown as T;
+    }
+
+    // --- LANE 3: PERSISTENCE (Atomic JSON + SQLite) ---
+
+    // Atomic Save Command
+    if (command === 'plugin:persistence|save_atomic_json') {
+        const { folder, filename, data } = args as { folder: string, filename: string, data: string };
+        const path = `DB/${folder}/${filename}`;
+        
+        // Simulating Rust's Atomic Write (write .tmp -> sync -> rename)
+        Telemetry.debug('Persistence', `Atomic Write Initiated: ${path}`);
+        
+        try {
+            // In Web Mode, we use LocalStorage as the "Disk"
+            localStorage.setItem(path, data);
+            Telemetry.success('Persistence', `Atomic Write Committed: ${path}`, { size: data.length });
+            return true as unknown as T;
+        } catch (e) {
+            Telemetry.error('Persistence', `Write Failed: ${path}`, { error: e });
+            throw new Error(`Disk Write Failed: ${e}`);
         }
-        return MockBackend.getMarketData() as unknown as T;
+    }
+
+    // Read JSON Command (For loading Sticky Notes / Layouts)
+    if (command === 'plugin:persistence|read_json') {
+        const { folder, filename } = args as { folder: string, filename: string };
+        const path = `DB/${folder}/${filename}`;
+        const data = localStorage.getItem(path);
+        
+        if (!data) {
+            Telemetry.warn('Persistence', `File Not Found: ${path}`);
+            return null as unknown as T;
+        }
+        return JSON.parse(data) as T;
+    }
+
+    // List JSON Files in Folder
+    if (command === 'plugin:persistence|list_folder') {
+        const { folder } = args as { folder: string };
+        const prefix = `DB/${folder}/`;
+        const items: string[] = [];
+        
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(prefix)) {
+                items.push(key.replace(prefix, ''));
+            }
+        }
+        return items as unknown as T;
     }
 
     // --- DATABASE COMMANDS (Native SQLite Simulation) ---
     if (command === 'db_health_check') {
         return true as unknown as T;
     }
+    
+    // Simulating SQL Insert via LocalStorage "Table"
     if (command === 'db_insert_trade') {
         const trade = args?.trade as TradeLog;
-        const newId = MOCK_SQLITE_DB.length + 1;
-        MOCK_SQLITE_DB.push({ ...trade, id: newId });
-        Telemetry.info('Database', 'Trade Inserted', { id: newId, symbol: trade.symbol });
+        
+        // Load current "Table"
+        const tableJson = localStorage.getItem('DB/Trades/ledger.json');
+        const ledger: TradeLog[] = tableJson ? JSON.parse(tableJson) : [...MOCK_SQLITE_DB];
+        
+        const newId = ledger.length + 1;
+        const newEntry = { ...trade, id: newId };
+        ledger.push(newEntry);
+        
+        // Save back
+        localStorage.setItem('DB/Trades/ledger.json', JSON.stringify(ledger));
+        
+        Telemetry.info('Database', 'Trade Inserted (WAL Mode Simulated)', { id: newId, symbol: trade.symbol });
         return newId as unknown as T;
     }
+    
     if (command === 'db_get_trades') {
         const symbol = args?.symbol as string;
-        return MOCK_SQLITE_DB.filter(t => t.symbol === symbol) as unknown as T;
+        const tableJson = localStorage.getItem('DB/Trades/ledger.json');
+        const ledger: TradeLog[] = tableJson ? JSON.parse(tableJson) : [...MOCK_SQLITE_DB];
+        
+        const results = ledger.filter(t => t.symbol === symbol);
+        return results as unknown as T;
     }
 
     const err = `Unknown IPC Command: ${command}`;
@@ -89,58 +209,75 @@ export const TauriService = {
     }
   },
 
+  async getAssets(): Promise<AssetMetadata[]> {
+    try {
+        const assets = await TauriService.invoke<AssetMetadata[]>('plugin:assets|get_all');
+        return assets;
+    } catch (e: any) {
+        Telemetry.error('System', 'Failed to fetch assets', { message: e.message });
+        throw e;
+    }
+  },
+
+  async scanAssets(): Promise<AssetMetadata[]> {
+    return TauriService.invoke<AssetMetadata[]>('plugin:assets|scan');
+  },
+
+  async openDirectoryDialog(): Promise<string> {
+      return TauriService.invoke<string>('plugin:fs|open_directory_dialog');
+  },
+
+  async listDirectory(path: string): Promise<FileSystemItem[]> {
+      return TauriService.invoke<FileSystemItem[]>('plugin:fs|list_directory', { path });
+  },
+
+  // --- LANE 3: PERSISTENCE METHODS ---
+
+  async saveAtomicJson(folder: string, filename: string, data: object): Promise<void> {
+      const jsonString = JSON.stringify(data);
+      await TauriService.invoke('plugin:persistence|save_atomic_json', { folder, filename, data: jsonString });
+  },
+
+  async readJson<T>(folder: string, filename: string): Promise<T | null> {
+      return TauriService.invoke<T>('plugin:persistence|read_json', { folder, filename });
+  },
+
+  async listFolder(folder: string): Promise<string[]> {
+      return TauriService.invoke<string[]>('plugin:persistence|list_folder', { folder });
+  },
+
+  async logTrade(trade: Omit<TradeLog, 'id'>): Promise<number> {
+      return TauriService.invoke<number>('db_insert_trade', { trade });
+  },
+
+  // --- LANE 4: MARKET STREAM (Binance WebSocket Abstraction) ---
+  
   /**
-   * Fetches market overview with Singleton Request Pattern & Exponential Backoff.
-   * Mandate 0.9.1 & 0.9.2
+   * Subscribes to the live market stream.
+   * In Native Mode: Listens to Tauri Event 'market-update' emitted by Rust.
+   * In Web Mode: Simulates a WebSocket connection with random price walks.
    */
-  async getMarketOverview(): Promise<any[]> {
-    const now = Date.now();
+  subscribeToMarketStream(onUpdate: (data: MiniTicker[]) => void): () => void {
+      // Check for Tauri environment (Abstraction Rule)
+      // @ts-ignore
+      const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
 
-    // 1. Backoff Enforcement
-    if (now < marketNextRetryTime) {
-        const wait = Math.ceil((marketNextRetryTime - now) / 1000);
-        const msg = `Market Stream throttled. Retrying in ${wait}s`;
-        // We throw here so the UI knows not to expect data, but we don't log as error to avoid spam
-        throw new Error(msg);
-    }
-
-    // 2. Singleton Deduplication
-    if (marketOverviewPromise) {
-        // Return existing promise to prevent duplicate IPC calls
-        return marketOverviewPromise;
-    }
-
-    // 3. Execution Wrapper
-    marketOverviewPromise = (async () => {
-        try {
-            const data = await TauriService.invoke<any[]>('get_market_overview');
-            
-            // Success: Reset Backoff
-            if (marketFailureCount > 0) {
-                Telemetry.success('Network', 'Market Stream Reconnected');
-                marketFailureCount = 0;
-                marketNextRetryTime = 0;
-            }
-            return data;
-        } catch (e: any) {
-            // Failure: Calculate Exponential Backoff (2, 4, 8, 16s)
-            marketFailureCount++;
-            const backoffSeconds = Math.min(16, Math.pow(2, marketFailureCount)); 
-            marketNextRetryTime = Date.now() + (backoffSeconds * 1000);
-            
-            Telemetry.warn('Network', `Market Stream Failed. Backing off for ${backoffSeconds}s`, { 
-                attempt: marketFailureCount, 
-                error: e.message 
-            });
-            
-            throw e;
-        } finally {
-            // Release lock
-            marketOverviewPromise = null;
-        }
-    })();
-
-    return marketOverviewPromise;
+      if (isTauri) {
+          // NATIVE: Listen to Rust Event
+          // Note: In a real app we would use @tauri-apps/api/event
+          // For scaffolding we'll assume a global emitter or similar mechanism.
+          // Since we can't import actual Tauri modules here without build errors in this environment,
+          // we will mock the "Setup" of the listener.
+          Telemetry.info('Network', 'Subscribing to Native Binance Stream (Lane 4)');
+          
+          // Placeholder for: const unlisten = listen('market-update', (event) => onUpdate(event.payload));
+          // For now, we fall back to mock to ensure the UI works in this preview.
+          return MockBackend.startMockStream(onUpdate);
+      } else {
+          // WEB: Simulate WebSocket
+          Telemetry.info('Network', 'Starting Mock Market Stream (Web Mode)');
+          return MockBackend.startMockStream(onUpdate);
+      }
   }
 };
 
@@ -180,11 +317,40 @@ const MockBackend = {
         return textEncoder.encode(JSON.stringify(data));
     },
 
-    getMarketData: () => {
-        return [
-            { symbol: "BTCUSDT", price: "64,231.50", change: 2.4 },
-            { symbol: "ETHUSDT", price: "3,450.20", change: -1.2 },
-            { symbol: "SOLUSDT", price: "145.80", change: 5.7 },
-        ];
+    // --- LANE 4 MOCK GENERATOR ---
+    startMockStream: (callback: (data: MiniTicker[]) => void) => {
+        const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'ADAUSDT', 'XRPUSDT', 'DOGEUSDT', 'DOTUSDT'];
+        const prices: Record<string, number> = {
+            'BTCUSDT': 64000,
+            'ETHUSDT': 3400,
+            'SOLUSDT': 145,
+            'BNBUSDT': 590,
+            'ADAUSDT': 0.45,
+            'XRPUSDT': 0.60,
+            'DOGEUSDT': 0.16,
+            'DOTUSDT': 7.20
+        };
+
+        const interval = setInterval(() => {
+            const updates: MiniTicker[] = symbols.map(s => {
+                const prev = prices[s];
+                const change = (Math.random() - 0.5) * (prev * 0.002); // 0.2% volatility
+                const newPrice = prev + change;
+                prices[s] = newPrice;
+
+                return {
+                    s: s,
+                    c: newPrice.toFixed(2),
+                    o: (newPrice * (1 - (Math.random() * 0.01 - 0.005))).toFixed(2), // Mock open
+                    h: (newPrice * 1.001).toFixed(2),
+                    l: (newPrice * 0.999).toFixed(2),
+                    v: (Math.random() * 1000).toFixed(2),
+                    q: (Math.random() * 50000).toFixed(2)
+                };
+            });
+            callback(updates);
+        }, 1000); // Throttled to 1s for Mock (Rust would be 300ms)
+
+        return () => clearInterval(interval);
     }
 };
