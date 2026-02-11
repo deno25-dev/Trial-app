@@ -33,7 +33,7 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({ icon, label, onClick, act
     className={clsx(
       "w-10 h-10 flex items-center justify-center rounded-xl transition-all relative group mb-1",
       active 
-        ? "text-primary bg-primary/10 shadow-[0_0_12px_rgba(34,211,238,0.2)] border border-primary/20" 
+        ? "text-primary bg-primary/15 shadow-[0_0_20px_rgba(34,211,238,0.45)] border border-white/20" 
         : "text-muted hover:text-text hover:bg-white/5 border border-transparent"
     )}
   >

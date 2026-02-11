@@ -31,8 +31,8 @@ const ToolButton: React.FC<ToolButtonProps> = ({ active, onClick, icon, label, h
     className={clsx(
       "w-10 h-10 flex items-center justify-center rounded-xl transition-all relative group mb-1",
       active 
-        ? "text-primary bg-primary/10 shadow-[0_0_12px_rgba(34,211,238,0.2)] border border-primary/20" 
-        : "text-muted hover:text-text hover:bg-white/5 border border-transparent"
+        ? "text-primary bg-primary/15 shadow-[0_0_20px_rgba(34,211,238,0.45)] border border-white/20" 
+        : "text-muted hover:text-text hover:bg-surface-highlight border border-transparent"
     )}
   >
     {icon}
@@ -43,10 +43,10 @@ const ToolButton: React.FC<ToolButtonProps> = ({ active, onClick, icon, label, h
     )}
     
     {/* Tooltip */}
-    <span className="absolute left-14 bg-[#1e293b]/90 backdrop-blur border border-border px-3 py-1.5 rounded-lg text-xs font-medium text-text opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-xl translate-x-1 group-hover:translate-x-0 duration-200">
+    <span className="absolute left-14 bg-surface backdrop-blur border border-border px-3 py-1.5 rounded-lg text-xs font-medium text-text opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-xl translate-x-1 group-hover:translate-x-0 duration-200">
         {label}
         {/* Triangle Pointer */}
-        <div className="absolute top-1/2 -left-1 -mt-1 w-2 h-2 bg-[#1e293b]/90 border-l border-b border-border transform rotate-45" />
+        <div className="absolute top-1/2 -left-1 -mt-1 w-2 h-2 bg-surface border-l border-b border-border transform rotate-45" />
     </span>
   </button>
 );

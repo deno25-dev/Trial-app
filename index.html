@@ -20,6 +20,7 @@
             colors: {
               background: 'var(--bg-background)',
               surface: 'var(--bg-surface)',
+              'surface-highlight': 'var(--bg-surface-highlight)',
               border: 'var(--border-color)',
               primary: 'var(--color-primary)',
               text: 'var(--text-primary)',
@@ -39,6 +40,7 @@
       :root {
         --bg-background: #ffffff;
         --bg-surface: #f4f4f5;
+        --bg-surface-highlight: #e4e4e7;
         --border-color: #e4e4e7;
         --text-primary: #18181b;
         --text-muted: #71717a;
@@ -47,9 +49,16 @@
         --color-danger: #dc2626;
       }
       .dark {
-        --bg-background: #0f172a;
-        --bg-surface: #1e293b;
-        --border-color: #334155;
+        /* Midnight River Palette - 4 Variant Shades */
+        /* Shade 1: Deep Abyss (Main Background) */
+        --bg-background: #0B1121;
+        /* Shade 2: River Bed (Panels/Surface) */
+        --bg-surface: #151E32;
+        /* Shade 3: Deep Current (Hover/Active/Inputs) */
+        --bg-surface-highlight: #232D45;
+        /* Shade 4: Moonlit Ripple (Borders) */
+        --border-color: #3B4C69;
+        
         --text-primary: #f1f5f9;
         --text-muted: #94a3b8;
         --color-primary: #22d3ee;
@@ -61,7 +70,7 @@
       body {
         background-color: var(--bg-background);
         /* Subtle deep gradient for that premium "Midnight River" feel */
-        background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, var(--bg-background) 60%);
+        background-image: radial-gradient(circle at 50% 0%, var(--bg-surface) 0%, var(--bg-background) 80%);
         color: var(--text-primary);
         font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
         overflow: hidden; /* App-like feel */
@@ -91,10 +100,10 @@
 
       /* Glassmorphism Utility */
       .glass {
-          background: rgba(30, 41, 59, 0.4);
+          background: rgba(21, 30, 50, 0.6);
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
-          border: 1px solid rgba(51, 65, 85, 0.5);
+          border: 1px solid var(--border-color);
       }
     </style>
   <script type="importmap">

@@ -51,22 +51,23 @@ export const TopBar: React.FC = () => {
   const Separator = () => <div className="h-5 w-px bg-white/10 mx-1" />;
 
   // Interactive Button Style (Matches Sidebar/DrawingTools)
+  // UPDATED: Changed border-primary/60 to border-white/20 for softer off-white edge
   const getBtnClass = (active: boolean) => clsx(
     "w-9 h-9 flex items-center justify-center rounded-lg transition-all relative group border",
     active 
-        ? "text-primary bg-primary/10 shadow-[0_0_12px_rgba(34,211,238,0.2)] border-primary/20" 
-        : "text-muted hover:text-text hover:bg-white/5 border-transparent"
+        ? "text-primary bg-primary/15 shadow-[0_0_20px_rgba(34,211,238,0.45)] border-white/20" 
+        : "text-muted hover:text-text hover:bg-surface-highlight border-transparent"
   );
 
   const getTimeframeBtnClass = (active: boolean) => clsx(
     "px-3 h-7 text-xs font-bold rounded-md transition-all border flex items-center justify-center",
     active 
-        ? "text-primary bg-primary/10 shadow-[0_0_12px_rgba(34,211,238,0.2)] border-primary/20" 
-        : "text-muted hover:text-text hover:bg-white/5 border-transparent"
+        ? "text-primary bg-primary/15 shadow-[0_0_20px_rgba(34,211,238,0.45)] border-white/20" 
+        : "text-muted hover:text-text hover:bg-surface-highlight border-transparent"
   );
 
   return (
-    <div className="h-12 border-b border-border bg-background flex items-center px-3 select-none relative z-40 gap-1 text-muted shadow-sm transition-colors duration-300">
+    <div className="h-12 border-b border-border bg-surface flex items-center px-3 select-none relative z-40 gap-1 text-muted shadow-sm transition-colors duration-300">
       
       {/* 1. Search */}
       <button 
@@ -122,8 +123,8 @@ export const TopBar: React.FC = () => {
             className={clsx(
                 "flex items-center gap-1 px-2 h-9 rounded-lg transition-all border",
                 isTimeframeOpen
-                ? "text-primary bg-primary/10 shadow-[0_0_12px_rgba(34,211,238,0.2)] border-primary/20"
-                : "text-muted hover:text-text hover:bg-white/5 border-transparent"
+                ? "text-primary bg-primary/15 shadow-[0_0_20px_rgba(34,211,238,0.45)] border-white/20"
+                : "text-muted hover:text-text hover:bg-surface-highlight border-transparent"
             )}
          >
             <Clock size={18} />
@@ -131,7 +132,7 @@ export const TopBar: React.FC = () => {
          </button>
 
          {/* Favorites List - Grouped in Soft Edge Container */}
-         <div className="hidden lg:flex items-center gap-1 ml-2 p-1 bg-surface/50 border border-white/5 rounded-xl backdrop-blur-sm shadow-sm transition-colors duration-300">
+         <div className="hidden lg:flex items-center gap-1 ml-2 p-1 bg-surface-highlight/20 border border-white/5 rounded-xl backdrop-blur-sm shadow-sm transition-colors duration-300">
             {FAVORITE_TIMEFRAMES.map((tf) => (
                 <button
                     key={tf}
@@ -145,13 +146,13 @@ export const TopBar: React.FC = () => {
 
          {/* Dropdown Menu */}
          {isTimeframeOpen && (
-             <div className="absolute top-full left-0 mt-1 w-32 bg-surface/60 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100">
+             <div className="absolute top-full left-0 mt-1 w-32 bg-surface/90 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100">
                 {ALL_TIMEFRAMES.map(tf => (
                     <button
                         key={tf}
                         onClick={() => { setInterval(tf); setIsTimeframeOpen(false); }}
                         className={clsx(
-                            "w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition-colors flex items-center justify-between",
+                            "w-full text-left px-3 py-1.5 text-xs hover:bg-surface-highlight transition-colors flex items-center justify-between",
                             state.interval === tf ? "text-primary font-bold" : "text-text"
                         )}
                     >
@@ -178,7 +179,7 @@ export const TopBar: React.FC = () => {
             </button>
             
             {isSkinMenuOpen && (
-                <div className="absolute top-full right-0 mt-1 w-48 bg-surface/60 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+                <div className="absolute top-full right-0 mt-1 w-48 bg-surface/90 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
                     <div className="px-3 py-1.5 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
                         Skins
                     </div>
@@ -193,7 +194,7 @@ export const TopBar: React.FC = () => {
                                 "w-full flex items-center justify-between px-3 py-2 text-xs transition-colors",
                                 state.skin === skinKey 
                                     ? "bg-primary/10 text-primary font-medium" 
-                                    : "text-text hover:bg-white/10"
+                                    : "text-text hover:bg-surface-highlight"
                             )}
                         >
                             <span>{SKIN_CONFIG[skinKey].name}</span>

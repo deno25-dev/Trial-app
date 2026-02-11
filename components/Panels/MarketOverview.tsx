@@ -11,7 +11,7 @@ const MarketItem: React.FC<{ ticker: MiniTicker }> = ({ ticker }) => {
   const isUp = change >= 0;
 
   return (
-    <div className="flex items-center justify-between py-2 border-b border-border/50 hover:bg-text/5 px-2 cursor-pointer transition-colors group">
+    <div className="flex items-center justify-between py-2 border-b border-border/50 hover:bg-surface-highlight px-2 cursor-pointer transition-colors group">
       <div className="flex flex-col">
           <span className="font-bold text-sm text-text group-hover:text-primary transition-colors">{ticker.s}</span>
           <span className="text-[10px] text-muted font-mono">Vol: {parseFloat(ticker.v).toFixed(0)}</span>
@@ -42,7 +42,7 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({ isOpen, onToggle
     <div className="h-full flex flex-col">
       {/* Panel Header */}
       <div 
-        className="h-10 border-b border-border flex items-center justify-between px-4 bg-surface select-none cursor-pointer hover:bg-text/5 transition-colors"
+        className="h-10 border-b border-border flex items-center justify-between px-4 bg-surface select-none cursor-pointer hover:bg-surface-highlight transition-colors"
         onClick={onToggle}
       >
         <div className="flex items-center gap-2 pointer-events-none">
@@ -53,7 +53,7 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({ isOpen, onToggle
             {status === 'connecting' && <span className="w-2 h-2 rounded-full bg-primary animate-pulse ml-2" title="Connecting..." />}
         </div>
         <button 
-            className="text-muted hover:text-text p-1 rounded hover:bg-text/5 pointer-events-auto"
+            className="text-muted hover:text-text p-1 rounded hover:bg-surface-highlight pointer-events-auto"
             onClick={(e) => {
                 e.stopPropagation();
             }}

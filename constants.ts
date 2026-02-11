@@ -13,12 +13,15 @@ export const SKIN_CONFIG = {
         name: 'Midnight River',
         type: 'dark',
         css: {
-            // Deep Teal/Slate Void
-            '--bg-background': '#0f172a', 
-            // Glassy Surface (Darker)
-            '--bg-surface': '#1e293b',    
-            // Cyan/Teal Border
-            '--border-color': '#334155',  
+            // Shade 1: Deep Abyss (Main Background)
+            '--bg-background': '#0B1121', 
+            // Shade 2: River Bed (Panels/Surface)
+            '--bg-surface': '#151E32',    
+            // Shade 3: Deep Current (Highlight/Active)
+            '--bg-surface-highlight': '#232D45',
+            // Shade 4: Moonlit Ripple (Borders)
+            '--border-color': '#3B4C69',  
+            
             '--text-primary': '#f1f5f9',
             '--text-muted': '#94a3b8',
             // Neon Cyan Primary
@@ -27,9 +30,9 @@ export const SKIN_CONFIG = {
             '--color-danger': '#fb7185',  
         },
         chart: {
-            background: '#0f172a',
-            surface: '#1e293b',
-            grid: '#1e293b', 
+            background: '#0B1121',
+            surface: '#151E32',
+            grid: '#151E32', 
             text: '#94a3b8',
             candleUp: '#2dd4bf',
             candleDown: '#fb7185',
@@ -44,6 +47,7 @@ export const SKIN_CONFIG = {
         css: {
             '--bg-background': '#000000',
             '--bg-surface': '#09090b',
+            '--bg-surface-highlight': '#18181b',
             '--border-color': '#27272a',
             '--text-primary': '#e4e4e7',
             '--text-muted': '#52525b',
@@ -67,6 +71,7 @@ export const SKIN_CONFIG = {
         css: {
             '--bg-background': '#18181b', // Zinc-900
             '--bg-surface': '#27272a',    // Zinc-800
+            '--bg-surface-highlight': '#3f3f46',
             '--border-color': '#3f3f46',  // Zinc-700
             '--text-primary': '#f4f4f5',
             '--text-muted': '#a1a1aa',
@@ -90,6 +95,7 @@ export const SKIN_CONFIG = {
         css: {
             '--bg-background': '#161321', // Deep Violet Black
             '--bg-surface': '#1E1B2E',    // Dark Plum
+            '--bg-surface-highlight': '#2D283E',
             '--border-color': '#362C4C',  // Muted Purple Border
             '--text-primary': '#E9D5FF',  // Lavender Mist
             '--text-muted': '#8B7F9F',    // Dusty Purple
@@ -115,6 +121,7 @@ export const SKIN_CONFIG = {
         css: {
             '--bg-background': '#1E1A17', // Espresso
             '--bg-surface': '#2C241F',    // Dark Roast
+            '--bg-surface-highlight': '#3E342F',
             '--border-color': '#453831',  // Cocoa
             '--text-primary': '#E6D7C3',  // Latte Foam
             '--text-muted': '#967E70',    // Dusty Cinnamon
@@ -140,6 +147,7 @@ export const SKIN_CONFIG = {
         css: {
             '--bg-background': '#151912', // Deep moss/swamp
             '--bg-surface': '#1F241A',    // Dark olive
+            '--bg-surface-highlight': '#2C3425',
             '--border-color': '#323829',  // Organic border
             '--text-primary': '#E7F5DC',  // Pale leaf white
             '--text-muted': '#7A8C6E',    // Dried sage
@@ -165,6 +173,7 @@ export const SKIN_CONFIG = {
         css: {
             '--bg-background': '#211a12', // Deep Bronze/Black
             '--bg-surface': '#382c1e',    // Dark Leather Brown
+            '--bg-surface-highlight': '#4D3E2E',
             '--border-color': '#54422d',  // Copper
             '--text-primary': '#eaddcf',  // Parchment
             '--text-muted': '#96836e',    // Sand
@@ -190,6 +199,7 @@ export const SKIN_CONFIG = {
         css: {
             '--bg-background': '#2a231a', // Dark Loam
             '--bg-surface': '#403629',    // Raw Umber/Oxide
+            '--bg-surface-highlight': '#504435',
             '--border-color': '#594c3a',  // Clay
             '--text-primary': '#e3d5c3',  // Bone/Mineral White
             '--text-muted': '#96836e',    // Sandstone
@@ -215,6 +225,7 @@ export const SKIN_CONFIG = {
         css: {
             '--bg-background': '#ffffff',
             '--bg-surface': '#f4f4f5',    // Zinc-100
+            '--bg-surface-highlight': '#e4e4e7',
             '--border-color': '#e4e4e7',  // Zinc-200
             '--text-primary': '#18181b',  // Zinc-900
             '--text-muted': '#71717a',    // Zinc-500
