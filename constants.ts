@@ -75,7 +75,7 @@ export const SKIN_CONFIG = {
             '--border-color': '#3f3f46',  // Zinc-700
             '--text-primary': '#f4f4f5',
             '--text-muted': '#a1a1aa',
-            '--color-primary': '#3b82f6', // Standard Blue
+            '--color-primary': '#38bdf8', // Sky-400 (Softer, fits "Cumulus")
         },
         chart: {
             background: '#18181b',
