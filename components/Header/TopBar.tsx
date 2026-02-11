@@ -19,7 +19,7 @@ import {
 import clsx from 'clsx';
 
 export const TopBar: React.FC = () => {
-  const { state, setInterval, toggleChartType, setSkin, toggleSearch } = useChart();
+  const { state, setInterval, toggleChartType, setSkin, toggleSearch, isSearchOpen } = useChart();
   
   // Timeframe Dropdown State
   const [isTimeframeOpen, setIsTimeframeOpen] = useState(false);
@@ -50,13 +50,28 @@ export const TopBar: React.FC = () => {
 
   const Separator = () => <div className="h-5 w-px bg-white/10 mx-1" />;
 
+  // Interactive Button Style (Matches Sidebar/DrawingTools)
+  const getBtnClass = (active: boolean) => clsx(
+    "w-9 h-9 flex items-center justify-center rounded-lg transition-all relative group border",
+    active 
+        ? "text-primary bg-primary/10 shadow-[0_0_12px_rgba(34,211,238,0.2)] border-primary/20" 
+        : "text-muted hover:text-text hover:bg-white/5 border-transparent"
+  );
+
+  const getTimeframeBtnClass = (active: boolean) => clsx(
+    "px-3 h-7 text-xs font-bold rounded-md transition-all border flex items-center justify-center",
+    active 
+        ? "text-primary bg-primary/10 shadow-[0_0_12px_rgba(34,211,238,0.2)] border-primary/20" 
+        : "text-muted hover:text-text hover:bg-white/5 border-transparent"
+  );
+
   return (
     <div className="h-12 border-b border-border bg-background flex items-center px-3 select-none relative z-40 gap-1 text-muted shadow-sm transition-colors duration-300">
       
       {/* 1. Search */}
       <button 
         onClick={toggleSearch}
-        className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors"
+        className={getBtnClass(isSearchOpen)}
         title="Search Symbol (Cmd+K)"
       >
         <Search size={18} strokeWidth={2} />
@@ -67,20 +82,14 @@ export const TopBar: React.FC = () => {
       {/* 2. Chart Types */}
       <button 
         onClick={() => state.chartType !== 'candle' && toggleChartType()}
-        className={clsx(
-            "w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 transition-colors",
-            state.chartType === 'candle' ? "text-primary" : "hover:text-text"
-        )}
+        className={getBtnClass(state.chartType === 'candle')}
         title="Candles"
       >
         <CandlestickChart size={18} strokeWidth={2} />
       </button>
       <button 
         onClick={() => state.chartType !== 'line' && toggleChartType()}
-        className={clsx(
-            "w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 transition-colors",
-            state.chartType === 'line' ? "text-primary" : "hover:text-text"
-        )}
+        className={getBtnClass(state.chartType === 'line')}
         title="Line"
       >
         <LineChart size={18} strokeWidth={2} />
@@ -89,17 +98,17 @@ export const TopBar: React.FC = () => {
       <Separator />
 
       {/* 3. History & Replay (Visual Only) */}
-      <button className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors">
+      <button className={getBtnClass(false)}>
         <Undo2 size={18} strokeWidth={2} />
       </button>
-      <button className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors">
+      <button className={getBtnClass(false)}>
         <Redo2 size={18} strokeWidth={2} />
       </button>
       
-      <button className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors ml-1">
+      <button className={clsx(getBtnClass(false), "ml-1")}>
          <Rewind size={18} strokeWidth={2} />
       </button>
-       <button className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors">
+       <button className={getBtnClass(false)}>
          <StepBack size={18} strokeWidth={2} />
       </button>
 
@@ -110,24 +119,24 @@ export const TopBar: React.FC = () => {
          {/* Dropdown Trigger */}
          <button 
             onClick={() => setIsTimeframeOpen(!isTimeframeOpen)}
-            className="flex items-center gap-1 px-2 h-9 rounded hover:bg-white/5 hover:text-text transition-colors"
+            className={clsx(
+                "flex items-center gap-1 px-2 h-9 rounded-lg transition-all border",
+                isTimeframeOpen
+                ? "text-primary bg-primary/10 shadow-[0_0_12px_rgba(34,211,238,0.2)] border-primary/20"
+                : "text-muted hover:text-text hover:bg-white/5 border-transparent"
+            )}
          >
             <Clock size={18} />
             <ChevronDown size={12} />
          </button>
 
-         {/* Favorites List */}
-         <div className="hidden lg:flex items-center gap-1 ml-1">
+         {/* Favorites List - Grouped in Soft Edge Container */}
+         <div className="hidden lg:flex items-center gap-1 ml-2 p-1 bg-surface/50 border border-white/5 rounded-xl backdrop-blur-sm shadow-sm transition-colors duration-300">
             {FAVORITE_TIMEFRAMES.map((tf) => (
                 <button
                     key={tf}
                     onClick={() => setInterval(tf)}
-                    className={clsx(
-                        "px-3 h-7 text-xs font-bold rounded transition-colors",
-                        state.interval === tf 
-                        ? "bg-primary text-white shadow-sm" 
-                        : "text-muted hover:text-text hover:bg-white/5"
-                    )}
+                    className={getTimeframeBtnClass(state.interval === tf)}
                 >
                     {tf}
                 </button>
@@ -162,10 +171,7 @@ export const TopBar: React.FC = () => {
         <div className="relative" ref={skinMenuRef}>
             <button
                 onClick={() => setIsSkinMenuOpen(!isSkinMenuOpen)}
-                className={clsx(
-                    "w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 transition-colors",
-                    isSkinMenuOpen ? "text-text bg-white/5" : "text-muted hover:text-text"
-                )}
+                className={getBtnClass(isSkinMenuOpen)}
                 title="Themes / Skins"
             >
                 <Palette size={18} strokeWidth={2} />
@@ -198,7 +204,7 @@ export const TopBar: React.FC = () => {
             )}
         </div>
 
-        <button className="w-9 h-9 flex items-center justify-center rounded hover:bg-white/5 hover:text-text transition-colors">
+        <button className={getBtnClass(false)}>
             <LayoutGrid size={18} strokeWidth={2} />
         </button>
       </div>
