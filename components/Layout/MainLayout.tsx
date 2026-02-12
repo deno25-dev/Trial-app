@@ -12,6 +12,7 @@ import clsx from 'clsx';
 
 export const MainLayout: React.FC = () => {
   const [panelHeight, setPanelHeight] = useState(256); // Default 256px
+  const [lastOpenHeight, setLastOpenHeight] = useState(256);
   const [isDragging, setIsDragging] = useState(false);
   
   // Use ChartContext for Data Explorer State
@@ -34,9 +35,17 @@ export const MainLayout: React.FC = () => {
       if (!isDragging) return;
       
       const delta = dragStartY.current - e.clientY;
-      // Constraint: Min 40px, Max 500px
-      const newHeight = Math.max(40, Math.min(dragStartHeight.current + delta, window.innerHeight - 200));
+      // Constraint: Min 40px, Max 80% of Screen Height
+      const maxHeight = window.innerHeight * 0.8;
+      const newHeight = Math.max(40, Math.min(dragStartHeight.current + delta, maxHeight));
+      
       setPanelHeight(newHeight);
+      
+      // Only update memory if we are effectively "open" (above 60px)
+      // This prevents remembering "41px" as the open state
+      if (newHeight > 60) {
+          setLastOpenHeight(newHeight);
+      }
     };
 
     const handleMouseUp = () => {
@@ -57,6 +66,19 @@ export const MainLayout: React.FC = () => {
       document.body.style.cursor = 'default';
     };
   }, [isDragging]);
+
+  const togglePanel = () => {
+    if (panelHeight > 40) {
+      // Closing
+      setLastOpenHeight(panelHeight);
+      setPanelHeight(40);
+    } else {
+      // Opening
+      // Restore to last known height, or default to 256 if memory is too small/invalid
+      const targetHeight = lastOpenHeight < 100 ? 256 : lastOpenHeight;
+      setPanelHeight(targetHeight);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full w-full bg-background">
@@ -106,7 +128,11 @@ export const MainLayout: React.FC = () => {
                 onMouseDown={handleMouseDown}
             />
 
-            <BottomPanel height={panelHeight} />
+            <BottomPanel 
+              height={panelHeight} 
+              onToggle={togglePanel} 
+              isExpanded={panelHeight > 40}
+            />
           </div>
         </div>
 

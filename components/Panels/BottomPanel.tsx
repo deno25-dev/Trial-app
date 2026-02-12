@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart2, Plus, Maximize2, X } from 'lucide-react';
+import { BarChart2, ChevronUp, ChevronDown } from 'lucide-react';
 import { Position } from '../../types';
 import { MarketOverview } from './MarketOverview';
 import clsx from 'clsx';
@@ -38,7 +38,13 @@ const MOCK_POSITIONS: Position[] = [
 
 type PanelTab = 'Positions' | 'Open Orders' | 'Order History' | 'Trade History';
 
-export const BottomPanel: React.FC<{ height: number }> = ({ height }) => {
+interface BottomPanelProps {
+    height: number;
+    onToggle: () => void;
+    isExpanded: boolean;
+}
+
+export const BottomPanel: React.FC<BottomPanelProps> = ({ height, onToggle, isExpanded }) => {
   const [activeTab, setActiveTab] = useState<PanelTab>('Positions');
   const [isOverviewOpen, setIsOverviewOpen] = useState(false);
 
@@ -49,6 +55,7 @@ export const BottomPanel: React.FC<{ height: number }> = ({ height }) => {
         onClick={() => {
             setActiveTab(label);
             setIsOverviewOpen(false); // Switching to a tab closes the Overview mode
+            if (!isExpanded) onToggle(); // Auto-expand if clicking a tab while collapsed
         }}
         className={clsx(
             "h-full px-4 text-xs font-medium transition-colors relative flex items-center gap-2 border-r border-border",
@@ -74,11 +81,17 @@ export const BottomPanel: React.FC<{ height: number }> = ({ height }) => {
     <div className="h-full flex flex-col bg-background text-text font-sans overflow-hidden">
         
         {/* --- HEADER --- */}
-        <div className="h-10 border-b border-border flex items-center bg-surface shrink-0">
+        <div 
+            className="h-10 border-b border-border flex items-center bg-surface shrink-0"
+            onDoubleClick={onToggle} // Double clicking header also toggles
+        >
             
             {/* Market Overview Toggle */}
             <button 
-                onClick={() => setIsOverviewOpen(!isOverviewOpen)}
+                onClick={() => {
+                    setIsOverviewOpen(!isOverviewOpen);
+                    if (!isExpanded) onToggle();
+                }}
                 className={clsx(
                     "h-full px-4 flex items-center gap-2 border-r border-border transition-colors relative",
                     isOverviewOpen 
@@ -103,11 +116,19 @@ export const BottomPanel: React.FC<{ height: number }> = ({ height }) => {
 
             <div className="flex-1" />
 
-            {/* Panel Actions */}
+            {/* Panel Actions - Button A is Toggle, B & C Removed */}
             <div className="flex items-center px-2 gap-1 text-muted">
-                <button className="p-1.5 hover:text-text hover:bg-surface-highlight rounded"><Maximize2 size={14} /></button>
-                <button className="p-1.5 hover:text-text hover:bg-surface-highlight rounded"><Plus size={14} /></button>
-                <button className="p-1.5 hover:text-text hover:bg-surface-highlight rounded"><X size={14} /></button>
+                <button 
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onToggle();
+                    }}
+                    className="p-1.5 hover:text-text hover:bg-surface-highlight rounded"
+                    title={isExpanded ? "Close Panel" : "Open Panel"}
+                >
+                    {isExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                </button>
             </div>
         </div>
 
