@@ -11,7 +11,7 @@ const MarketItem: React.FC<{ ticker: MiniTicker }> = ({ ticker }) => {
   const isUp = change >= 0;
 
   return (
-    <div className="flex items-center justify-between py-2 border-b border-border/50 hover:bg-surface-highlight px-2 cursor-pointer transition-colors group">
+    <div className="flex items-center justify-between py-2 border-b border-white/5 hover:bg-surface-highlight px-2 cursor-pointer transition-colors group">
       <div className="flex flex-col">
           <span className="font-bold text-sm text-text group-hover:text-primary transition-colors">{ticker.s}</span>
           <span className="text-[10px] text-muted font-mono">Vol: {parseFloat(ticker.v).toFixed(0)}</span>
