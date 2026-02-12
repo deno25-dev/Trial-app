@@ -17,7 +17,8 @@ import {
   ArrowUpRight,
   ArrowRight,
   Minus,
-  MoveVertical
+  MoveVertical,
+  Triangle
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -67,21 +68,30 @@ export const DrawingTools: React.FC = () => {
   const [isLineToolsOpen, setIsLineToolsOpen] = useState(false);
   const lineToolsRef = useRef<HTMLDivElement>(null);
 
+  // State for Shapes Popup
+  const [isShapesOpen, setIsShapesOpen] = useState(false);
+  const shapesRef = useRef<HTMLDivElement>(null);
+
   // Close popup on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Close Line Tools
       if (lineToolsRef.current && !lineToolsRef.current.contains(event.target as Node)) {
         setIsLineToolsOpen(false);
       }
+      // Close Shapes
+      if (shapesRef.current && !shapesRef.current.contains(event.target as Node)) {
+        setIsShapesOpen(false);
+      }
     };
 
-    if (isLineToolsOpen) {
+    if (isLineToolsOpen || isShapesOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isLineToolsOpen]);
+  }, [isLineToolsOpen, isShapesOpen]);
 
   // Line Tools Data
   const lineTools = [
@@ -93,7 +103,15 @@ export const DrawingTools: React.FC = () => {
     { id: 'horizontal_line', label: 'Horizontal Line', icon: <Minus size={16} />, favored: false },
   ];
 
+  // Shape Tools Data
+  const shapeTools = [
+    { id: 'rectangle', label: 'Rectangle', icon: <Square size={16} />, favored: true },
+    { id: 'triangle', label: 'Triangle', icon: <Triangle size={16} />, favored: false },
+    { id: 'rotated_rectangle', label: 'Rotated Rectangle', icon: <Square size={16} className="rotate-45" />, favored: false },
+  ];
+
   const isLineToolActive = ['trendline', 'ray', 'horizontal_line', 'vertical_line', 'arrow_line'].includes(state.activeTool);
+  const isShapeToolActive = ['rectangle', 'triangle', 'rotated_rectangle'].includes(state.activeTool as string);
 
   return (
     <div className="flex flex-col w-full items-center py-2 gap-1.5">
@@ -140,7 +158,6 @@ export const DrawingTools: React.FC = () => {
                             )}
                           >
                               <div className="flex items-center gap-3">
-                                  {/* Ensure icon color matches text unless specifically styled */}
                                   <span className={isActive ? "text-primary" : "text-muted group-hover:text-text"}>
                                     {tool.icon}
                                   </span>
@@ -166,13 +183,62 @@ export const DrawingTools: React.FC = () => {
           )}
       </div>
 
-      <ToolButton 
-          active={state.activeTool === 'rectangle'} 
-          onClick={() => setTool('rectangle')} 
-          icon={<Square size={20} strokeWidth={1.5} />} 
-          label="Shapes" 
-          hasArrow
-      />
+      {/* Geometric Shapes with Popup */}
+      <div className="relative" ref={shapesRef}>
+          <ToolButton 
+              active={isShapeToolActive} 
+              onClick={() => setIsShapesOpen(!isShapesOpen)} 
+              icon={<Square size={20} strokeWidth={1.5} />} 
+              label="Geometric Shapes" 
+              hasArrow
+          />
+
+          {isShapesOpen && (
+             <div className="absolute left-full top-0 ml-3 w-56 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                  <div className="px-3 py-2 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
+                      Geometric Shapes
+                  </div>
+                  
+                  {shapeTools.map((tool) => {
+                      const isActive = state.activeTool === tool.id;
+                      return (
+                          <button
+                            key={tool.id}
+                            onClick={() => {
+                                setTool(tool.id as any);
+                                setIsShapesOpen(false);
+                            }}
+                            className={clsx(
+                                "w-full flex items-center justify-between px-3 py-2 text-xs transition-colors group",
+                                isActive ? "bg-primary/10 text-primary" : "text-text hover:bg-surface-highlight/50"
+                            )}
+                          >
+                              <div className="flex items-center gap-3">
+                                  <span className={isActive ? "text-primary" : "text-muted group-hover:text-text"}>
+                                    {tool.icon}
+                                  </span>
+                                  <span className="font-medium">{tool.label}</span>
+                              </div>
+                              
+                              {/* Star Icon */}
+                              <div 
+                                className={clsx(
+                                    "p-1 rounded hover:bg-surface transition-colors",
+                                    tool.favored ? "text-yellow-500" : "text-muted opacity-0 group-hover:opacity-100"
+                                )}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                }}
+                              >
+                                  <Star size={12} fill={tool.favored ? "currentColor" : "none"} />
+                              </div>
+                          </button>
+                      );
+                  })}
+             </div>
+          )}
+      </div>
+
       <ToolButton 
           active={state.activeTool === 'brush'} 
           onClick={() => setTool('brush')} 
