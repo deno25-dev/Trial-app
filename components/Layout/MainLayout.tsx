@@ -59,7 +59,7 @@ export const MainLayout: React.FC = () => {
   }, [isDragging]);
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#0B1121]">
+    <div className="flex flex-col h-full w-full bg-background">
       {/* 1. Header */}
       <TopBar />
       
@@ -96,13 +96,13 @@ export const MainLayout: React.FC = () => {
           <div 
             style={{ height: panelHeight }}
             className={clsx(
-              "border-t border-border bg-[#0B1121] z-30 overflow-hidden shrink-0 relative flex flex-col shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.2)]",
+              "border-t border-border bg-background z-30 overflow-hidden shrink-0 relative flex flex-col shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.2)]",
               !isDragging && "transition-all duration-200 ease-out"
             )}
           >
             {/* Resizer Handle */}
             <div 
-                className="absolute top-0 left-0 w-full h-1 cursor-row-resize z-50 hover:bg-blue-500/50 transition-colors"
+                className="absolute top-0 left-0 w-full h-1 cursor-row-resize z-50 hover:bg-primary/50 transition-colors"
                 onMouseDown={handleMouseDown}
             />
 

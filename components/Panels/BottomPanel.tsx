@@ -46,32 +46,35 @@ export const BottomPanel: React.FC<{ height: number }> = ({ height }) => {
       <button
         onClick={() => setActiveTab(label)}
         className={clsx(
-            "h-full px-4 text-xs font-medium transition-colors relative flex items-center gap-2",
+            "h-full px-4 text-xs font-medium transition-colors relative flex items-center gap-2 border-r border-border",
             activeTab === label 
-                ? "text-blue-400 bg-[#1e293b]" 
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-[#1e293b]/50"
+                ? "text-primary bg-surface-highlight" 
+                : "text-muted hover:text-text hover:bg-surface-highlight/50"
         )}
       >
           {label}
           {count !== undefined && (
-              <span className="bg-zinc-700 text-zinc-300 px-1 rounded text-[10px] min-w-[16px] text-center">{count}</span>
+              <span className={clsx(
+                  "px-1.5 rounded text-[10px] min-w-[16px] text-center",
+                  activeTab === label ? "bg-primary/20 text-primary" : "bg-surface text-muted border border-border"
+              )}>{count}</span>
           )}
           {activeTab === label && (
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-blue-500" />
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-primary" />
           )}
       </button>
   );
 
   return (
-    <div className="h-full flex flex-col bg-[#0B1121] text-zinc-300 font-sans">
+    <div className="h-full flex flex-col bg-background text-text font-sans">
         {/* --- HEADER --- */}
-        <div className="h-10 border-b border-white/5 flex items-center bg-[#151E32] shrink-0">
+        <div className="h-10 border-b border-border flex items-center bg-surface shrink-0">
             
             {/* Market Overview Toggle (Mock) */}
-            <button className="h-full px-4 flex items-center gap-2 border-r border-white/5 text-zinc-400 hover:bg-[#1e293b] transition-colors">
-                <BarChart2 size={14} className="text-blue-500" />
+            <button className="h-full px-4 flex items-center gap-2 border-r border-border text-muted hover:bg-surface-highlight hover:text-text transition-colors">
+                <BarChart2 size={14} className="text-primary" />
                 <span className="text-xs font-bold">Market Overview</span>
-                <span className="text-[9px] border border-zinc-700 px-1 rounded text-zinc-500">OFFLINE</span>
+                <span className="text-[9px] border border-border px-1 rounded text-muted">OFFLINE</span>
             </button>
 
             {/* Tabs */}
@@ -85,63 +88,63 @@ export const BottomPanel: React.FC<{ height: number }> = ({ height }) => {
             <div className="flex-1" />
 
             {/* Panel Actions */}
-            <div className="flex items-center px-2 gap-1 text-zinc-500">
-                <button className="p-1.5 hover:text-zinc-300 hover:bg-white/5 rounded"><Maximize2 size={14} /></button>
-                <button className="p-1.5 hover:text-zinc-300 hover:bg-white/5 rounded"><Plus size={14} /></button>
-                <button className="p-1.5 hover:text-zinc-300 hover:bg-white/5 rounded"><X size={14} /></button>
+            <div className="flex items-center px-2 gap-1 text-muted">
+                <button className="p-1.5 hover:text-text hover:bg-surface-highlight rounded"><Maximize2 size={14} /></button>
+                <button className="p-1.5 hover:text-text hover:bg-surface-highlight rounded"><Plus size={14} /></button>
+                <button className="p-1.5 hover:text-text hover:bg-surface-highlight rounded"><X size={14} /></button>
             </div>
         </div>
 
         {/* --- CONTENT TABLE --- */}
-        <div className="flex-1 overflow-auto bg-[#0B1121]">
+        <div className="flex-1 overflow-auto bg-background custom-scrollbar">
             <table className="w-full text-left text-xs border-collapse">
-                <thead className="sticky top-0 bg-[#0B1121] z-10 text-zinc-500 font-medium">
+                <thead className="sticky top-0 bg-surface z-10 text-muted font-medium shadow-sm">
                     <tr>
-                        <th className="py-2 px-4 border-b border-white/5 font-medium">SYMBOL</th>
-                        <th className="py-2 px-4 border-b border-white/5 font-medium">SIDE</th>
-                        <th className="py-2 px-4 border-b border-white/5 font-medium">SIZE</th>
-                        <th className="py-2 px-4 border-b border-white/5 font-medium">ENTRY PRICE</th>
-                        <th className="py-2 px-4 border-b border-white/5 font-medium">MARK PRICE</th>
-                        <th className="py-2 px-4 border-b border-white/5 font-medium">LIQ. PRICE</th>
-                        <th className="py-2 px-4 border-b border-white/5 font-medium">MARGIN</th>
-                        <th className="py-2 px-4 border-b border-white/5 font-medium text-right">PNL (ROE%)</th>
+                        <th className="py-2 px-4 border-b border-border font-medium">SYMBOL</th>
+                        <th className="py-2 px-4 border-b border-border font-medium">SIDE</th>
+                        <th className="py-2 px-4 border-b border-border font-medium">SIZE</th>
+                        <th className="py-2 px-4 border-b border-border font-medium">ENTRY PRICE</th>
+                        <th className="py-2 px-4 border-b border-border font-medium">MARK PRICE</th>
+                        <th className="py-2 px-4 border-b border-border font-medium">LIQ. PRICE</th>
+                        <th className="py-2 px-4 border-b border-border font-medium">MARGIN</th>
+                        <th className="py-2 px-4 border-b border-border font-medium text-right">PNL (ROE%)</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-border">
                     {activeTab === 'Positions' && MOCK_POSITIONS.map((pos) => (
-                        <tr key={pos.id} className="hover:bg-white/[0.02] transition-colors group">
+                        <tr key={pos.id} className="hover:bg-surface-highlight/30 transition-colors group">
                             {/* Symbol */}
-                            <td className="py-3 px-4 font-bold text-zinc-200">
+                            <td className="py-3 px-4 font-bold text-text">
                                 <div className="flex items-center gap-2">
-                                    <span className={`w-2 h-2 rounded-full ${pos.side === 'Long' ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
+                                    <span className={`w-2 h-2 rounded-full ${pos.side === 'Long' ? 'bg-success' : 'bg-muted'}`} />
                                     {pos.symbol}
-                                    <span className="bg-[#1e293b] text-yellow-500 px-1 rounded text-[10px] font-mono border border-yellow-500/20">{pos.leverage}x</span>
+                                    <span className="bg-primary/10 text-primary px-1.5 rounded text-[10px] font-mono border border-primary/20">{pos.leverage}x</span>
                                 </div>
                             </td>
                             
                             {/* Side */}
-                            <td className={clsx("py-3 px-4 font-medium", pos.side === 'Long' ? "text-emerald-500" : "text-rose-500")}>
+                            <td className={clsx("py-3 px-4 font-medium", pos.side === 'Long' ? "text-success" : "text-danger")}>
                                 {pos.side}
                             </td>
 
                             {/* Size */}
-                            <td className="py-3 px-4 font-mono text-zinc-300">
-                                {pos.size} <span className="text-zinc-600 text-[10px]">{pos.sizeCurrency}</span>
+                            <td className="py-3 px-4 font-mono text-text">
+                                {pos.size} <span className="text-muted text-[10px]">{pos.sizeCurrency}</span>
                             </td>
 
                             {/* Prices */}
-                            <td className="py-3 px-4 font-mono text-zinc-300">{pos.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 font-mono text-zinc-300">{pos.markPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 font-mono text-orange-400">{pos.liqPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 font-mono text-text">{pos.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 font-mono text-text">{pos.markPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 font-mono text-danger">{pos.liqPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                             
                             {/* Margin */}
-                            <td className="py-3 px-4 font-mono text-zinc-300">
-                                {pos.margin.toLocaleString(undefined, { minimumFractionDigits: 2 })} <span className="text-zinc-600 text-[10px]">USDT</span>
+                            <td className="py-3 px-4 font-mono text-text">
+                                {pos.margin.toLocaleString(undefined, { minimumFractionDigits: 2 })} <span className="text-muted text-[10px]">USDT</span>
                             </td>
 
                             {/* PNL */}
                             <td className="py-3 px-4 text-right font-mono font-medium">
-                                <div className={clsx(pos.pnl >= 0 ? "text-emerald-500" : "text-rose-500")}>
+                                <div className={clsx(pos.pnl >= 0 ? "text-success" : "text-danger")}>
                                     {pos.pnl >= 0 ? '+' : ''}{pos.pnl.toFixed(2)}
                                     <span className="ml-1 opacity-80">({pos.pnl >= 0 ? '+' : ''}{pos.roe.toFixed(2)}%)</span>
                                 </div>
@@ -152,7 +155,7 @@ export const BottomPanel: React.FC<{ height: number }> = ({ height }) => {
                     {/* Placeholder for empty tabs */}
                     {activeTab !== 'Positions' && (
                         <tr>
-                            <td colSpan={8} className="py-12 text-center text-zinc-600 italic">
+                            <td colSpan={8} className="py-12 text-center text-muted italic">
                                 No records found for {activeTab}
                             </td>
                         </tr>
