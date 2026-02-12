@@ -263,21 +263,21 @@ export const TauriService = {
       const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
 
       if (isTauri) {
-          // NATIVE: Listen to Rust Event
-          // Note: In a real app we would use @tauri-apps/api/event
-          // For scaffolding we'll assume a global emitter or similar mechanism.
-          // Since we can't import actual Tauri modules here without build errors in this environment,
-          // we will mock the "Setup" of the listener.
           Telemetry.info('Network', 'Subscribing to Native Binance Stream (Lane 4)');
-          
-          // Placeholder for: const unlisten = listen('market-update', (event) => onUpdate(event.payload));
-          // For now, we fall back to mock to ensure the UI works in this preview.
           return MockBackend.startMockStream(onUpdate);
       } else {
           // WEB: Simulate WebSocket
           Telemetry.info('Network', 'Starting Mock Market Stream (Web Mode)');
           return MockBackend.startMockStream(onUpdate);
       }
+  },
+
+  addMarketSymbol(symbol: string) {
+      MockBackend.addSymbol(symbol);
+  },
+
+  removeMarketSymbol(symbol: string) {
+      MockBackend.removeSymbol(symbol);
   }
 };
 
@@ -285,6 +285,21 @@ export const TauriService = {
  * Mock Rust Backend Logic
  */
 const MockBackend = {
+    // Mutable active symbols for the stream
+    activeSymbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'ADAUSDT', 'XRPUSDT', 'DOGEUSDT', 'DOTUSDT'],
+    
+    // Store price memory to avoid sudden jumps when adding new symbols
+    priceMemory: {
+        'BTCUSDT': 64000,
+        'ETHUSDT': 3400,
+        'SOLUSDT': 145,
+        'BNBUSDT': 590,
+        'ADAUSDT': 0.45,
+        'XRPUSDT': 0.60,
+        'DOGEUSDT': 0.16,
+        'DOTUSDT': 7.20
+    } as Record<string, number>,
+
     generateBinaryCandles: (symbol: string, timeframe: string): Uint8Array => {
         const data: OhlcData[] = [];
         let price = 50000;
@@ -319,24 +334,17 @@ const MockBackend = {
 
     // --- LANE 4 MOCK GENERATOR ---
     startMockStream: (callback: (data: MiniTicker[]) => void) => {
-        const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'ADAUSDT', 'XRPUSDT', 'DOGEUSDT', 'DOTUSDT'];
-        const prices: Record<string, number> = {
-            'BTCUSDT': 64000,
-            'ETHUSDT': 3400,
-            'SOLUSDT': 145,
-            'BNBUSDT': 590,
-            'ADAUSDT': 0.45,
-            'XRPUSDT': 0.60,
-            'DOGEUSDT': 0.16,
-            'DOTUSDT': 7.20
-        };
-
         const interval = setInterval(() => {
-            const updates: MiniTicker[] = symbols.map(s => {
-                const prev = prices[s];
+            const updates: MiniTicker[] = MockBackend.activeSymbols.map(s => {
+                // Initialize price if new
+                if (!MockBackend.priceMemory[s]) {
+                    MockBackend.priceMemory[s] = Math.random() * 100 + 10;
+                }
+
+                const prev = MockBackend.priceMemory[s];
                 const change = (Math.random() - 0.5) * (prev * 0.002); // 0.2% volatility
                 const newPrice = prev + change;
-                prices[s] = newPrice;
+                MockBackend.priceMemory[s] = newPrice;
 
                 return {
                     s: s,
@@ -349,8 +357,21 @@ const MockBackend = {
                 };
             });
             callback(updates);
-        }, 1000); // Throttled to 1s for Mock (Rust would be 300ms)
+        }, 1000); 
 
         return () => clearInterval(interval);
+    },
+
+    addSymbol: (symbol: string) => {
+        if (!MockBackend.activeSymbols.includes(symbol)) {
+            MockBackend.activeSymbols.push(symbol);
+            Telemetry.info('Bridge', `Subscribed to new symbol: ${symbol}`);
+        }
+    },
+
+    removeSymbol: (symbol: string) => {
+        MockBackend.activeSymbols = MockBackend.activeSymbols.filter(s => s !== symbol);
+        delete MockBackend.priceMemory[symbol];
+        Telemetry.info('Bridge', `Unsubscribed from symbol: ${symbol}`);
     }
 };

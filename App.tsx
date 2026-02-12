@@ -5,6 +5,7 @@ import { MarketProvider } from './context/MarketContext';
 import { DeveloperTools } from './components/DeveloperTools';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AssetSearchOverlay } from './components/Overlays/AssetSearchOverlay';
+import { MarketSearchOverlay } from './components/Overlays/MarketSearchOverlay';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Initialize the Query Client for managing UI state and server caching
@@ -44,6 +45,7 @@ const App: React.FC = () => {
               
               {/* Global Overlays */}
               <AssetSearchOverlay />
+              <MarketSearchOverlay />
               
               {isDevToolsOpen && <DeveloperTools onClose={() => setIsDevToolsOpen(false)} />}
             </div>

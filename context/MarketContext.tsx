@@ -8,6 +8,10 @@ interface MarketContextType {
   prices: Record<string, MiniTicker>;
   status: 'connecting' | 'connected' | 'disconnected' | 'error';
   isOnline: boolean;
+  isMarketSearchOpen: boolean;
+  toggleMarketSearch: () => void;
+  addSymbol: (symbol: string) => void;
+  removeSymbol: (symbol: string) => void;
 }
 
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
@@ -15,6 +19,7 @@ const MarketContext = createContext<MarketContextType | undefined>(undefined);
 export const MarketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [prices, setPrices] = useState<Record<string, MiniTicker>>({});
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
+  const [isMarketSearchOpen, setIsMarketSearchOpen] = useState(false);
   const isOnline = useOnlineStatus();
 
   useEffect(() => {
@@ -32,8 +37,6 @@ export const MarketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setStatus('connected');
         
         // Update State (High Frequency)
-        // Note: In a real high-perf app, we might use a Ref or specific React Optimization
-        // to avoid re-rendering the whole tree, but for this scaffolding, State is fine.
         setPrices(prev => {
             const next = { ...prev };
             data.forEach(ticker => {
@@ -50,8 +53,32 @@ export const MarketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
   }, [isOnline]);
 
+  const toggleMarketSearch = () => setIsMarketSearchOpen(prev => !prev);
+  
+  const addSymbol = (symbol: string) => {
+      TauriService.addMarketSymbol(symbol);
+  };
+
+  const removeSymbol = (symbol: string) => {
+      TauriService.removeMarketSymbol(symbol);
+      // Immediate state update for responsiveness
+      setPrices(prev => {
+          const next = { ...prev };
+          delete next[symbol];
+          return next;
+      });
+  };
+
   return (
-    <MarketContext.Provider value={{ prices, status, isOnline }}>
+    <MarketContext.Provider value={{ 
+        prices, 
+        status, 
+        isOnline, 
+        isMarketSearchOpen, 
+        toggleMarketSearch, 
+        addSymbol,
+        removeSymbol
+    }}>
       {children}
     </MarketContext.Provider>
   );

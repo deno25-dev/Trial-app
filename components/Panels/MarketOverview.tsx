@@ -1,17 +1,17 @@
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight, MoreHorizontal, ChevronUp, ChevronDown, WifiOff, Wifi, Activity } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Plus, ChevronUp, ChevronDown, WifiOff, Wifi, Activity, Trash2 } from 'lucide-react';
 import { useMarket } from '../../context/MarketContext';
 import { MarketOfflineFallback } from '../Fallbacks/MarketOfflineFallback';
 import { MiniTicker } from '../../types';
 
-const MarketItem: React.FC<{ ticker: MiniTicker }> = ({ ticker }) => {
+const MarketItem: React.FC<{ ticker: MiniTicker; onRemove: (s: string) => void }> = ({ ticker, onRemove }) => {
   const price = parseFloat(ticker.c);
   const open = parseFloat(ticker.o);
   const change = ((price - open) / open) * 100;
   const isUp = change >= 0;
 
   return (
-    <div className="flex items-center justify-between py-2 border-b border-white/5 hover:bg-surface-highlight px-2 cursor-pointer transition-colors group">
+    <div className="relative flex items-center justify-between py-2 border-b border-white/5 hover:bg-surface-highlight px-2 cursor-pointer transition-colors group pr-8">
       <div className="flex flex-col">
           <span className="font-bold text-sm text-text group-hover:text-primary transition-colors">{ticker.s}</span>
           <span className="text-[10px] text-muted font-mono">Vol: {parseFloat(ticker.v).toFixed(0)}</span>
@@ -23,6 +23,18 @@ const MarketItem: React.FC<{ ticker: MiniTicker }> = ({ ticker }) => {
               {Math.abs(change).toFixed(2)}%
           </span>
       </div>
+      
+      {/* Delete Button (Appears on Hover) */}
+      <button
+        onClick={(e) => {
+            e.stopPropagation();
+            onRemove(ticker.s);
+        }}
+        className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1.5 text-muted hover:text-danger hover:bg-surface rounded-md transition-all scale-90 hover:scale-100"
+        title={`Remove ${ticker.s}`}
+      >
+        <Trash2 size={14} />
+      </button>
     </div>
   );
 };
@@ -34,7 +46,8 @@ interface MarketOverviewProps {
 
 export const MarketOverview: React.FC<MarketOverviewProps> = ({ isOpen, onToggle }) => {
   // Consuming Lane 4 Data
-  const { prices, status, isOnline } = useMarket();
+  const { prices, status, isOnline, toggleMarketSearch, removeSymbol } = useMarket();
+
   // Explicitly cast to MiniTicker[] to handle Object.values inference issues
   const tickerList = Object.values(prices) as MiniTicker[];
 
@@ -53,12 +66,14 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({ isOpen, onToggle
             {status === 'connecting' && <span className="w-2 h-2 rounded-full bg-primary animate-pulse ml-2" title="Connecting..." />}
         </div>
         <button 
-            className="text-muted hover:text-text p-1 rounded hover:bg-surface-highlight pointer-events-auto"
+            className="text-muted hover:text-emerald-400 hover:bg-emerald-400/10 p-1 rounded transition-colors pointer-events-auto"
             onClick={(e) => {
                 e.stopPropagation();
+                toggleMarketSearch();
             }}
+            title="Search Web Assets (Lane 4)"
         >
-            <MoreHorizontal size={16} />
+            <Plus size={16} />
         </button>
       </div>
 
@@ -78,7 +93,7 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({ isOpen, onToggle
             /* State: Active Data */
             <div className="p-2">
                 {tickerList.map((ticker) => (
-                    <MarketItem key={ticker.s} ticker={ticker} />
+                    <MarketItem key={ticker.s} ticker={ticker} onRemove={removeSymbol} />
                 ))}
             </div>
         )}
