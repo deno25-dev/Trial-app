@@ -13,6 +13,7 @@ interface ChartContextType {
   toggleMagnet: () => void;
   toggleChartType: () => void;
   toggleGrid: () => void;
+  toggleFavoritesBar: () => void;
   toggleTheme: () => void;
   toggleSearch: () => void;
   toggleDataExplorer: () => void;
@@ -28,6 +29,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     isMagnetMode: false,
     activeTool: 'crosshair',
     showGrid: true,
+    showFavoritesBar: true,
     theme: 'dark',
     skin: 'default'
   });
@@ -85,6 +87,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const toggleMagnet = () => setState(prev => ({ ...prev, isMagnetMode: !prev.isMagnetMode }));
   const toggleChartType = () => setState(prev => ({ ...prev, chartType: prev.chartType === 'candle' ? 'line' : 'candle' }));
   const toggleGrid = () => setState(prev => ({ ...prev, showGrid: !prev.showGrid }));
+  const toggleFavoritesBar = () => setState(prev => ({ ...prev, showFavoritesBar: !prev.showFavoritesBar }));
   
   const toggleSearch = () => setIsSearchOpen(prev => !prev);
   const toggleDataExplorer = () => setIsDataExplorerOpen(prev => !prev);
@@ -124,6 +127,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toggleMagnet, 
         toggleChartType, 
         toggleGrid, 
+        toggleFavoritesBar,
         toggleTheme, 
         toggleSearch,
         toggleDataExplorer 

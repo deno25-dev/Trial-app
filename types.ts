@@ -20,6 +20,7 @@ export interface ChartState {
   isMagnetMode: boolean;
   activeTool: DrawingToolType;
   showGrid: boolean;
+  showFavoritesBar: boolean;
   theme: 'dark' | 'light'; // Mandate 0.7: Theme support
   skin: AppSkin;
 }

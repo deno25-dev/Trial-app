@@ -56,7 +56,7 @@ const Separator = () => (
 );
 
 export const DrawingTools: React.FC = () => {
-  const { state, setTool, toggleMagnet, toggleGrid } = useChart();
+  const { state, setTool, toggleMagnet, toggleGrid, toggleFavoritesBar } = useChart();
 
   return (
     <div className="flex flex-col w-full items-center py-2 gap-1.5">
@@ -130,9 +130,9 @@ export const DrawingTools: React.FC = () => {
           label="Lock All Drawings" 
       />
       <ToolButton 
-          active={true} 
-          onClick={() => {}} 
-          icon={<Star size={20} className="fill-current text-yellow-500" strokeWidth={1.5} />} 
+          active={state.showFavoritesBar} 
+          onClick={toggleFavoritesBar} 
+          icon={<Star size={20} className={state.showFavoritesBar ? "fill-current text-yellow-500" : ""} strokeWidth={1.5} />} 
           label="Favorites Bar" 
       />
       <ToolButton 

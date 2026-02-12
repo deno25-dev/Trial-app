@@ -16,7 +16,7 @@ export const MainLayout: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   
   // Use ChartContext for Data Explorer State
-  const { isDataExplorerOpen } = useChart();
+  const { isDataExplorerOpen, state } = useChart();
 
   // Refs for Dragging
   const dragStartY = useRef(0);
@@ -106,7 +106,7 @@ export const MainLayout: React.FC = () => {
             <FinancialChart />
             
             {/* Floating Toolbar (The pill shape) */}
-            <FloatingChartToolbar />
+            {state.showFavoritesBar && <FloatingChartToolbar />}
             
             {/* Overlay mask during drag */}
             {isDragging && (
