@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useChart } from '../../context/ChartContext';
-import { FAVORITE_TIMEFRAMES, ALL_TIMEFRAMES, SKIN_CONFIG } from '../../constants';
-import { Timeframe, AppSkin } from '../../types';
+import { ALL_TIMEFRAMES, SKIN_CONFIG } from '../../constants';
+import { AppSkin } from '../../types';
 import { 
   Search, 
   Rewind,
@@ -13,12 +13,13 @@ import {
   LineChart,
   Palette,
   Check,
-  StepBack
+  StepBack,
+  Star
 } from 'lucide-react';
 import clsx from 'clsx';
 
 export const TopBar: React.FC = () => {
-  const { state, setInterval, toggleChartType, setSkin, toggleSearch, isSearchOpen } = useChart();
+  const { state, setInterval, toggleChartType, setSkin, toggleSearch, isSearchOpen, toggleFavorite } = useChart();
   
   // Timeframe Dropdown State
   const [isTimeframeOpen, setIsTimeframeOpen] = useState(false);
@@ -64,6 +65,9 @@ export const TopBar: React.FC = () => {
         ? "text-primary bg-primary/15 shadow-[0_0_20px_rgba(34,211,238,0.45)] border-white/20" 
         : "text-muted hover:text-text hover:bg-surface-highlight border-transparent"
   );
+
+  // Filter all timeframes to ensure correct order of favorites
+  const sortedFavorites = ALL_TIMEFRAMES.filter(tf => state.favorites.includes(tf));
 
   return (
     <div className="h-12 border-b border-border bg-surface flex items-center px-3 select-none relative z-40 gap-1 text-muted shadow-sm transition-colors duration-300">
@@ -130,9 +134,9 @@ export const TopBar: React.FC = () => {
             <ChevronDown size={12} />
          </button>
 
-         {/* Favorites List - Grouped in Soft Edge Container */}
+         {/* Favorites List - Renders from State */}
          <div className="hidden lg:flex items-center gap-1 ml-2 p-1 bg-surface-highlight/20 border border-white/5 rounded-xl backdrop-blur-sm shadow-sm transition-colors duration-300">
-            {FAVORITE_TIMEFRAMES.map((tf) => (
+            {sortedFavorites.map((tf) => (
                 <button
                     key={tf}
                     onClick={() => setInterval(tf)}
@@ -145,20 +149,43 @@ export const TopBar: React.FC = () => {
 
          {/* Dropdown Menu */}
          {isTimeframeOpen && (
-             <div className="absolute top-full left-0 mt-1 w-32 bg-surface/90 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100">
-                {ALL_TIMEFRAMES.map(tf => (
-                    <button
+             <div className="absolute top-full left-0 mt-1 w-40 bg-surface/90 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 flex flex-col">
+                {ALL_TIMEFRAMES.map(tf => {
+                    const isFavorite = state.favorites.includes(tf);
+                    const isActive = state.interval === tf;
+                    
+                    return (
+                    <div 
                         key={tf}
-                        onClick={() => { setInterval(tf); setIsTimeframeOpen(false); }}
                         className={clsx(
-                            "w-full text-left px-3 py-1.5 text-xs hover:bg-surface-highlight transition-colors flex items-center justify-between",
-                            state.interval === tf ? "text-primary font-bold" : "text-text"
+                            "w-full px-3 py-1.5 text-xs flex items-center justify-between group transition-colors",
+                            isActive ? "bg-primary/10 text-primary font-bold" : "text-text hover:bg-surface-highlight"
                         )}
                     >
-                        {tf}
-                        {state.interval === tf && <Check size={12} />}
-                    </button>
-                ))}
+                        {/* Select Interval Click Area */}
+                        <button
+                            className="flex-1 text-left"
+                            onClick={() => { setInterval(tf); setIsTimeframeOpen(false); }}
+                        >
+                            {tf}
+                        </button>
+                        
+                        {/* Favorite Toggle Icon */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation(); // Prevent closing dropdown
+                                toggleFavorite(tf);
+                            }}
+                            className={clsx(
+                                "p-1 rounded hover:bg-surface transition-colors",
+                                isFavorite ? "text-yellow-500" : "text-muted hover:text-text opacity-0 group-hover:opacity-100"
+                            )}
+                            title={isFavorite ? "Remove from bar" : "Add to bar"}
+                        >
+                            <Star size={12} fill={isFavorite ? "currentColor" : "none"} />
+                        </button>
+                    </div>
+                )})}
              </div>
          )}
       </div>

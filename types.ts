@@ -23,6 +23,7 @@ export interface ChartState {
   showFavoritesBar: boolean;
   theme: 'dark' | 'light'; // Mandate 0.7: Theme support
   skin: AppSkin;
+  favorites: Timeframe[]; // Mandate 2.5: User-defined favorites
 }
 
 export type DrawingToolType = 'cursor' | 'crosshair' | 'trendline' | 'ray' | 'horizontal_line' | 'vertical_line' | 'rectangle' | 'fib_retracement' | 'brush' | 'text' | 'pencil' | 'measure';

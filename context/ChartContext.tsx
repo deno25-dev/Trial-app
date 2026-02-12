@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ChartState, DrawingToolType, Timeframe, AppSkin } from '../types';
-import { DEFAULT_SYMBOL, DEFAULT_TIMEFRAME, SKIN_CONFIG } from '../constants';
+import { DEFAULT_SYMBOL, DEFAULT_TIMEFRAME, SKIN_CONFIG, FAVORITE_TIMEFRAMES } from '../constants';
 
 interface ChartContextType {
   state: ChartState;
@@ -14,6 +14,7 @@ interface ChartContextType {
   toggleChartType: () => void;
   toggleGrid: () => void;
   toggleFavoritesBar: () => void;
+  toggleFavorite: (timeframe: Timeframe) => void;
   toggleTheme: () => void;
   toggleSearch: () => void;
   toggleDataExplorer: () => void;
@@ -31,7 +32,8 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     showGrid: true,
     showFavoritesBar: true,
     theme: 'dark',
-    skin: 'default'
+    skin: 'default',
+    favorites: [...FAVORITE_TIMEFRAMES]
   });
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -89,6 +91,19 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const toggleGrid = () => setState(prev => ({ ...prev, showGrid: !prev.showGrid }));
   const toggleFavoritesBar = () => setState(prev => ({ ...prev, showFavoritesBar: !prev.showFavoritesBar }));
   
+  const toggleFavorite = (tf: Timeframe) => {
+    setState(prev => {
+        const isFav = prev.favorites.includes(tf);
+        let newFavs;
+        if (isFav) {
+            newFavs = prev.favorites.filter(f => f !== tf);
+        } else {
+            newFavs = [...prev.favorites, tf];
+        }
+        return { ...prev, favorites: newFavs };
+    });
+  };
+
   const toggleSearch = () => setIsSearchOpen(prev => !prev);
   const toggleDataExplorer = () => setIsDataExplorerOpen(prev => !prev);
 
@@ -128,6 +143,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toggleChartType, 
         toggleGrid, 
         toggleFavoritesBar,
+        toggleFavorite,
         toggleTheme, 
         toggleSearch,
         toggleDataExplorer 
