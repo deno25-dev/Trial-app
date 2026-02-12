@@ -68,7 +68,7 @@ export const FloatingChartToolbar: React.FC = () => {
         <div 
             onMouseDown={handleMouseDown}
             onClickCapture={handleClickCapture}
-            className="flex items-center gap-1 bg-surface/90 backdrop-blur-md border border-border rounded-full px-2 py-1 shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-colors duration-300 cursor-grab active:cursor-grabbing"
+            className="flex items-center gap-1 bg-surface/60 backdrop-blur-md border border-border rounded-full px-2 py-1 shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-colors duration-300 cursor-grab active:cursor-grabbing"
         >
             
             {/* Drag Handle */}

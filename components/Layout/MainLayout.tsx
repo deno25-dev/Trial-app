@@ -136,8 +136,8 @@ export const MainLayout: React.FC = () => {
           </div>
         </div>
 
-        {/* 5. Right Sidebar */}
-        <div className="w-14 border-l border-border bg-surface flex flex-col items-center py-4 z-20 shrink-0">
+        {/* 5. Right Sidebar - Increased Z-Index to 50 to float above BottomPanel (z-30) */}
+        <div className="w-14 border-l border-border bg-surface flex flex-col items-center py-4 z-50 shrink-0">
           <RightSidebar />
         </div>
       </div>

@@ -70,7 +70,7 @@ export const TopBar: React.FC = () => {
   const sortedFavorites = ALL_TIMEFRAMES.filter(tf => state.favorites.includes(tf));
 
   return (
-    <div className="h-12 border-b border-border bg-surface flex items-center px-3 select-none relative z-40 gap-1 text-muted shadow-sm transition-colors duration-300">
+    <div className="h-12 border-b border-border bg-surface flex items-center px-3 select-none relative z-[60] gap-1 text-muted shadow-sm transition-colors duration-300">
       
       {/* 1. Search */}
       <button 
@@ -149,7 +149,7 @@ export const TopBar: React.FC = () => {
 
          {/* Dropdown Menu */}
          {isTimeframeOpen && (
-             <div className="absolute top-full left-0 mt-1 w-40 bg-surface/90 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 flex flex-col">
+             <div className="absolute top-full left-0 mt-1 w-40 bg-surface/60 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 flex flex-col">
                 {ALL_TIMEFRAMES.map(tf => {
                     const isFavorite = state.favorites.includes(tf);
                     const isActive = state.interval === tf;
@@ -205,7 +205,7 @@ export const TopBar: React.FC = () => {
             </button>
             
             {isSkinMenuOpen && (
-                <div className="absolute top-full right-0 mt-1 w-48 bg-surface/90 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+                <div className="absolute top-full right-0 mt-1 w-48 bg-surface/60 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
                     <div className="px-3 py-1.5 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
                         Skins
                     </div>

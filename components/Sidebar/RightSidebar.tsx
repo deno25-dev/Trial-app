@@ -7,18 +7,28 @@ import {
   ArrowRightLeft, 
   RefreshCw, 
   Settings,
-  Sun,
-  Moon,
-  Monitor,
-  Palette,
-  ChevronRight,
+  Grid3X3,
+  Crosshair,
+  CandlestickChart,
+  PaintBucket,
+  Sparkles,
   Check,
-  Grid3X3
+  FolderPlus,
+  Trash2,
+  X,
+  Maximize,
+  Columns,
+  Grid2x2,
+  Save,
+  FolderOpen,
+  FileDown,
+  FileUp,
+  Download,
+  Upload,
+  Plus
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useChart } from '../../context/ChartContext';
-import { SKIN_CONFIG } from '../../constants';
-import { AppSkin } from '../../types';
 
 interface SidebarButtonProps {
   icon: React.ReactNode;
@@ -48,24 +58,43 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({ icon, label, onClick, act
 );
 
 export const RightSidebar: React.FC = () => {
-  const { state, toggleTheme, setSkin, toggleGrid, toggleDataExplorer, isDataExplorerOpen } = useChart();
+  const { state, toggleGrid, toggleDataExplorer, isDataExplorerOpen, setTool, toggleChartType } = useChart();
+  
+  // Settings Dropdown State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
+  // Object Tree Dropdown State
+  const [isObjectTreeOpen, setIsObjectTreeOpen] = useState(false);
+  const objectTreeRef = useRef<HTMLDivElement>(null);
+
+  // Layout Dropdown State
+  const [isLayoutOpen, setIsLayoutOpen] = useState(false);
+  const layoutRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Close Settings
       if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
         setIsSettingsOpen(false);
       }
+      // Close Object Tree
+      if (objectTreeRef.current && !objectTreeRef.current.contains(event.target as Node)) {
+        setIsObjectTreeOpen(false);
+      }
+      // Close Layout
+      if (layoutRef.current && !layoutRef.current.contains(event.target as Node)) {
+        setIsLayoutOpen(false);
+      }
     };
 
-    if (isSettingsOpen) {
+    if (isSettingsOpen || isObjectTreeOpen || isLayoutOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isSettingsOpen]);
+  }, [isSettingsOpen, isObjectTreeOpen, isLayoutOpen]);
 
   return (
     <div className="flex flex-col w-full items-center h-full py-2 gap-1.5">
@@ -81,10 +110,133 @@ export const RightSidebar: React.FC = () => {
         />
         
         {/* 3. Chart Layout */}
-        <SidebarButton icon={<LayoutTemplate size={20} strokeWidth={1.5} />} label="Chart layout" />
+        <div className="relative" ref={layoutRef}>
+            <SidebarButton 
+                icon={<LayoutTemplate size={20} strokeWidth={1.5} />} 
+                label="Chart layout" 
+                onClick={() => setIsLayoutOpen(!isLayoutOpen)}
+                active={isLayoutOpen}
+            />
+
+            {isLayoutOpen && (
+                <div className="absolute right-full top-0 mr-4 w-60 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right z-50 flex flex-col py-1">
+                    
+                    {/* Header */}
+                    <div className="px-3 py-2 border-b border-white/5 bg-white/5 flex items-center justify-between">
+                         <div className="flex items-center gap-2 text-text font-bold text-xs">
+                            <LayoutTemplate size={14} />
+                            <span>Layout</span>
+                        </div>
+                        <button 
+                            onClick={() => setIsLayoutOpen(false)} 
+                            className="text-muted hover:text-text"
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+
+                    {/* Section: GRID LAYOUTS */}
+                    <div className="px-4 py-2 text-[10px] font-bold text-muted uppercase tracking-widest mt-1">
+                        Grid Layouts
+                    </div>
+                    
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <Maximize size={16} className="text-muted group-hover:text-text transition-colors" />
+                        <span>Full Chart</span>
+                    </button>
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <Columns size={16} className="text-muted group-hover:text-text transition-colors" />
+                        <span>Split Chart 2x</span>
+                    </button>
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <Grid2x2 size={16} className="text-muted group-hover:text-text transition-colors" />
+                        <span>Split Chart 4x</span>
+                    </button>
+                    
+                    <div className="h-px bg-white/10 mx-3 my-1" />
+
+                    {/* Section: STORAGE */}
+                    <div className="px-4 py-2 text-[10px] font-bold text-muted uppercase tracking-widest">
+                        Storage
+                    </div>
+                    
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <Save size={16} className="text-emerald-500" />
+                        <span>Save Layout to DB</span>
+                    </button>
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <FolderOpen size={16} className="text-blue-500" />
+                        <span>Open Layout Manager</span>
+                    </button>
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <FileDown size={16} className="text-blue-400" />
+                        <span>Export Layout (.json)</span>
+                    </button>
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <FileUp size={16} className="text-amber-500" />
+                        <span>Import Layout (.json)</span>
+                    </button>
+
+                    <div className="h-px bg-white/10 mx-3 my-1" />
+
+                    {/* Data Actions */}
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <Download size={16} className="text-muted group-hover:text-text" />
+                        <span>Save Chart Data as CSV</span>
+                    </button>
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <Upload size={16} className="text-muted group-hover:text-text" />
+                        <span>Load CSV into Tab</span>
+                    </button>
+                    <button className="w-full flex items-center gap-3 px-4 py-2 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <Plus size={16} className="text-muted group-hover:text-text" />
+                        <span>New Chart Tab</span>
+                    </button>
+
+                </div>
+            )}
+        </div>
         
         {/* 4. Object Tree */}
-        <SidebarButton icon={<Layers size={20} strokeWidth={1.5} />} label="Object tree" />
+        <div className="relative" ref={objectTreeRef}>
+            <SidebarButton 
+                icon={<Layers size={20} strokeWidth={1.5} />} 
+                label="Object tree" 
+                onClick={() => setIsObjectTreeOpen(!isObjectTreeOpen)}
+                active={isObjectTreeOpen}
+            />
+
+            {isObjectTreeOpen && (
+                <div className="absolute right-full top-0 mr-4 w-64 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right z-50 flex flex-col">
+                    {/* Popup Header */}
+                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/5 bg-white/5">
+                        <div className="flex items-center gap-2 text-text font-bold text-xs">
+                            <Layers size={14} />
+                            <span>Object Tree</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                             <button className="p-1 hover:bg-white/10 rounded text-muted hover:text-text transition-colors" title="Create Folder">
+                                 <FolderPlus size={14} />
+                             </button>
+                             <button className="p-1 hover:bg-white/10 rounded text-muted hover:text-text transition-colors" title="Delete Selected">
+                                 <Trash2 size={14} />
+                             </button>
+                             <button 
+                                onClick={() => setIsObjectTreeOpen(false)}
+                                className="p-1 hover:bg-white/10 rounded text-muted hover:text-text transition-colors"
+                             >
+                                 <X size={14} />
+                             </button>
+                        </div>
+                    </div>
+                    
+                    {/* Popup Body */}
+                    <div className="h-32 flex flex-col items-center justify-center text-muted">
+                        <span className="text-xs opacity-60">No drawings on chart.</span>
+                    </div>
+                </div>
+            )}
+        </div>
         
         {/* 5. Trade */}
         <SidebarButton icon={<ArrowRightLeft size={20} strokeWidth={1.5} />} label="Trade" />
@@ -119,68 +271,58 @@ export const RightSidebar: React.FC = () => {
             />
 
             {isSettingsOpen && (
-                <div className="absolute right-full bottom-0 mr-4 w-64 glass border border-border/50 shadow-2xl rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-bottom-right z-50">
-                  <div className="p-2 flex flex-col gap-1">
-                    
-                    {/* Theme Toggle */}
-                    <button 
-                      onClick={() => toggleTheme()}
-                      className="w-full flex items-center justify-between px-3 py-2.5 text-sm text-text hover:bg-white/5 border border-transparent hover:border-white/10 rounded-lg transition-colors group"
-                    >
+                <div className="absolute right-full bottom-0 mr-4 w-48 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-bottom-right z-50 py-1">
+                  
+                  {/* Crosshair */}
+                  <button 
+                      onClick={() => {
+                          setTool('crosshair');
+                          setIsSettingsOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors group"
+                  >
                       <div className="flex items-center gap-3">
-                        {state.theme === 'dark' ? <Moon size={16} className="text-primary" /> : <Sun size={16} className="text-orange-500" />}
-                        <span>Theme Mode</span>
+                          <Crosshair size={16} className="text-muted group-hover:text-text transition-colors" />
+                          <span>Crosshair</span>
                       </div>
-                      <span className="text-xs text-muted group-hover:text-text transition-colors font-medium bg-white/5 px-2 py-0.5 rounded">
-                        {state.theme === 'dark' ? 'Dark' : 'Light'}
-                      </span>
-                    </button>
+                      {state.activeTool === 'crosshair' && <Check size={14} className="text-emerald-500" />}
+                  </button>
 
-                    <div className="h-px bg-white/5 my-1" />
+                  {/* Candles */}
+                  <button 
+                      onClick={() => {
+                           if (state.chartType !== 'candle') toggleChartType();
+                           setIsSettingsOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors group"
+                  >
+                      <div className="flex items-center gap-3">
+                          <CandlestickChart size={16} className="text-muted group-hover:text-text transition-colors" />
+                          <span>Candles</span>
+                      </div>
+                      {state.chartType === 'candle' && <Check size={14} className="text-emerald-500" />}
+                  </button>
 
-                    {/* Skins Submenu */}
-                    <div className="relative group/skin">
-                        <button className="w-full flex items-center justify-between px-3 py-2.5 text-sm text-text hover:bg-white/5 border border-transparent hover:border-white/10 rounded-lg transition-colors">
-                            <div className="flex items-center gap-3">
-                                <Palette size={16} className="text-muted" />
-                                <span>Interface Skin</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <span className="text-xs text-primary font-medium">{SKIN_CONFIG[state.skin].name}</span>
-                                <ChevronRight size={14} className="text-muted" />
-                            </div>
-                        </button>
-                        
-                        {/* Flyout Menu */}
-                        <div className="absolute right-full bottom-0 mr-2 w-48 glass border border-border/50 shadow-2xl rounded-xl overflow-hidden hidden group-hover/skin:block">
-                            <div className="p-1 flex flex-col gap-0.5">
-                                {(Object.keys(SKIN_CONFIG) as AppSkin[]).map((skinKey) => (
-                                    <button
-                                        key={skinKey}
-                                        onClick={() => setSkin(skinKey)}
-                                        className={clsx(
-                                            "w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg transition-colors border-l-2",
-                                            state.skin === skinKey 
-                                                ? "bg-primary/10 text-primary border-primary font-medium" 
-                                                : "text-muted hover:text-text hover:bg-white/5 border-transparent"
-                                        )}
-                                    >
-                                        <span>{SKIN_CONFIG[skinKey].name}</span>
-                                        {state.skin === skinKey && <Check size={12} />}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                  {/* Background */}
+                  <button 
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors group"
+                  >
+                      <div className="flex items-center gap-3">
+                          <PaintBucket size={16} className="text-yellow-500 group-hover:text-yellow-400 transition-colors" />
+                          <span>Background</span>
+                      </div>
+                  </button>
 
-                    <div className="h-px bg-white/5 my-1" />
+                  {/* Latest Add */}
+                  <button 
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors group"
+                  >
+                      <div className="flex items-center gap-3">
+                          <Sparkles size={16} className="text-purple-400 group-hover:text-purple-300 transition-colors" />
+                          <span>Latest Add</span>
+                      </div>
+                  </button>
 
-                    {/* System Monitor */}
-                    <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-muted hover:text-text hover:bg-white/5 border border-transparent hover:border-white/10 rounded-lg transition-colors">
-                      <Monitor size={16} />
-                      <span>System Monitor</span>
-                    </button>
-                  </div>
                 </div>
             )}
         </div>
