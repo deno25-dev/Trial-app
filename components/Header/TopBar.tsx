@@ -4,7 +4,6 @@ import { FAVORITE_TIMEFRAMES, ALL_TIMEFRAMES, SKIN_CONFIG } from '../../constant
 import { Timeframe, AppSkin } from '../../types';
 import { 
   Search, 
-  LayoutGrid, 
   Rewind,
   Undo2,
   Redo2,
@@ -204,10 +203,6 @@ export const TopBar: React.FC = () => {
                 </div>
             )}
         </div>
-
-        <button className={getBtnClass(false)}>
-            <LayoutGrid size={18} strokeWidth={2} />
-        </button>
       </div>
 
     </div>
