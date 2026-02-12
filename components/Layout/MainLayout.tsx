@@ -7,6 +7,7 @@ import { StatusBar } from '../Footer/StatusBar';
 import { FinancialChart } from '../Chart/FinancialChart';
 import { FloatingChartToolbar } from '../Chart/FloatingChartToolbar';
 import { DataExplorerSidebar } from '../Sidebar/DataExplorerSidebar';
+import { TradePanel } from '../Panels/TradePanel';
 import { useChart } from '../../context/ChartContext';
 import clsx from 'clsx';
 
@@ -15,8 +16,8 @@ export const MainLayout: React.FC = () => {
   const [lastOpenHeight, setLastOpenHeight] = useState(256);
   const [isDragging, setIsDragging] = useState(false);
   
-  // Use ChartContext for Data Explorer State
-  const { isDataExplorerOpen, state } = useChart();
+  // Use ChartContext for Data Explorer & Trade Panel State
+  const { isDataExplorerOpen, isTradePanelOpen, state } = useChart();
 
   // Refs for Dragging
   const dragStartY = useRef(0);
@@ -91,7 +92,7 @@ export const MainLayout: React.FC = () => {
           <DrawingTools />
         </div>
 
-        {/* 3. Data Explorer (Slide-out) */}
+        {/* 3. Data Explorer (Slide-out Left) */}
         {isDataExplorerOpen && (
             <div className="w-64 border-r border-border bg-surface z-10 shrink-0 animate-in slide-in-from-left duration-200">
                 <DataExplorerSidebar />
@@ -136,13 +137,20 @@ export const MainLayout: React.FC = () => {
           </div>
         </div>
 
-        {/* 5. Right Sidebar - Increased Z-Index to 50 to float above BottomPanel (z-30) */}
+        {/* 5. Trade Panel (Slide-out Right) */}
+        {isTradePanelOpen && (
+             <div className="z-40 shrink-0 h-full animate-in slide-in-from-right duration-200 shadow-xl">
+                 <TradePanel />
+             </div>
+        )}
+
+        {/* 6. Right Sidebar - Increased Z-Index to 50 to float above BottomPanel (z-30) */}
         <div className="w-14 border-l border-border bg-surface flex flex-col items-center py-4 z-50 shrink-0">
           <RightSidebar />
         </div>
       </div>
 
-      {/* 6. Footer Status Bar */}
+      {/* 7. Footer Status Bar */}
       <StatusBar />
     </div>
   );

@@ -6,6 +6,7 @@ interface ChartContextType {
   state: ChartState;
   isSearchOpen: boolean;
   isDataExplorerOpen: boolean;
+  isTradePanelOpen: boolean;
   setSymbol: (symbol: string) => void;
   setInterval: (interval: Timeframe) => void;
   setTool: (tool: DrawingToolType) => void;
@@ -18,6 +19,7 @@ interface ChartContextType {
   toggleTheme: () => void;
   toggleSearch: () => void;
   toggleDataExplorer: () => void;
+  toggleTradePanel: () => void;
 }
 
 const ChartContext = createContext<ChartContextType | undefined>(undefined);
@@ -38,6 +40,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDataExplorerOpen, setIsDataExplorerOpen] = useState(false);
+  const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
 
   // Ensure DOM matches initial state
   useEffect(() => {
@@ -106,6 +109,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const toggleSearch = () => setIsSearchOpen(prev => !prev);
   const toggleDataExplorer = () => setIsDataExplorerOpen(prev => !prev);
+  const toggleTradePanel = () => setIsTradePanelOpen(prev => !prev);
 
   const toggleTheme = () => {
     setState(prev => {
@@ -135,6 +139,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         state, 
         isSearchOpen, 
         isDataExplorerOpen,
+        isTradePanelOpen,
         setSymbol, 
         setInterval, 
         setTool, 
@@ -146,7 +151,8 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toggleFavorite,
         toggleTheme, 
         toggleSearch,
-        toggleDataExplorer 
+        toggleDataExplorer,
+        toggleTradePanel
     }}>
       {children}
     </ChartContext.Provider>

@@ -25,7 +25,10 @@ import {
   FileUp,
   Download,
   Upload,
-  Plus
+  Plus,
+  LineChart,
+  StickyNote,
+  ChevronRight
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useChart } from '../../context/ChartContext';
@@ -58,7 +61,16 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({ icon, label, onClick, act
 );
 
 export const RightSidebar: React.FC = () => {
-  const { state, toggleGrid, toggleDataExplorer, isDataExplorerOpen, setTool, toggleChartType } = useChart();
+  const { 
+    state, 
+    toggleGrid, 
+    toggleDataExplorer, 
+    isDataExplorerOpen, 
+    setTool, 
+    toggleChartType,
+    toggleTradePanel,
+    isTradePanelOpen
+  } = useChart();
   
   // Settings Dropdown State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -71,6 +83,10 @@ export const RightSidebar: React.FC = () => {
   // Layout Dropdown State
   const [isLayoutOpen, setIsLayoutOpen] = useState(false);
   const layoutRef = useRef<HTMLDivElement>(null);
+
+  // Tools Dropdown State
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const toolsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -86,20 +102,65 @@ export const RightSidebar: React.FC = () => {
       if (layoutRef.current && !layoutRef.current.contains(event.target as Node)) {
         setIsLayoutOpen(false);
       }
+      // Close Tools
+      if (toolsRef.current && !toolsRef.current.contains(event.target as Node)) {
+        setIsToolsOpen(false);
+      }
     };
 
-    if (isSettingsOpen || isObjectTreeOpen || isLayoutOpen) {
+    if (isSettingsOpen || isObjectTreeOpen || isLayoutOpen || isToolsOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isSettingsOpen, isObjectTreeOpen, isLayoutOpen]);
+  }, [isSettingsOpen, isObjectTreeOpen, isLayoutOpen, isToolsOpen]);
 
   return (
     <div className="flex flex-col w-full items-center h-full py-2 gap-1.5">
         {/* 1. Tools */}
-        <SidebarButton icon={<Briefcase size={20} strokeWidth={1.5} />} label="Tools" />
+        <div className="relative" ref={toolsRef}>
+            <SidebarButton 
+                icon={<Briefcase size={20} strokeWidth={1.5} />} 
+                label="Tools" 
+                onClick={() => setIsToolsOpen(!isToolsOpen)}
+                active={isToolsOpen}
+            />
+
+            {isToolsOpen && (
+                <div className="absolute right-full top-0 mr-4 w-60 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right z-50 py-1">
+                    
+                    {/* Indicators */}
+                    <button className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors group">
+                        <div className="flex items-center gap-3">
+                            <LineChart size={16} className="text-blue-400" />
+                            <span>Indicators</span>
+                        </div>
+                        <ChevronRight size={14} className="text-muted group-hover:text-text" />
+                    </button>
+
+                    <div className="h-px bg-white/10 mx-3 my-1" />
+
+                    {/* Section: UTILITIES */}
+                    <div className="px-4 py-2 text-[10px] font-bold text-muted uppercase tracking-widest">
+                        Utilities
+                    </div>
+
+                    {/* Add Sticky Note */}
+                    <button className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <StickyNote size={16} className="text-yellow-500" />
+                        <span>Add Sticky Note</span>
+                    </button>
+
+                    {/* Open Sticky Note Manager */}
+                    <button className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                        <FolderOpen size={16} className="text-muted group-hover:text-text" />
+                        <span>Open Sticky Note Manager</span>
+                    </button>
+
+                </div>
+            )}
+        </div>
         
         {/* 2. Data Explorer (Wired to Context) */}
         <SidebarButton 
@@ -238,8 +299,13 @@ export const RightSidebar: React.FC = () => {
             )}
         </div>
         
-        {/* 5. Trade */}
-        <SidebarButton icon={<ArrowRightLeft size={20} strokeWidth={1.5} />} label="Trade" />
+        {/* 5. Trade Panel Toggle */}
+        <SidebarButton 
+            icon={<ArrowRightLeft size={20} strokeWidth={1.5} />} 
+            label="Trade Panel" 
+            onClick={toggleTradePanel}
+            active={isTradePanelOpen}
+        />
 
         {/* 6. Grid Toggle */}
         <SidebarButton 

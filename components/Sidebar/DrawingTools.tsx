@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useChart } from '../../context/ChartContext';
 import { 
   Crosshair, 
@@ -13,6 +13,11 @@ import {
   Eye,
   Star,
   Trash2,
+  Slash,
+  ArrowUpRight,
+  ArrowRight,
+  Minus,
+  MoveVertical
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -58,6 +63,38 @@ const Separator = () => (
 export const DrawingTools: React.FC = () => {
   const { state, setTool, toggleMagnet, toggleGrid, toggleFavoritesBar } = useChart();
 
+  // State for Line Tools Popup
+  const [isLineToolsOpen, setIsLineToolsOpen] = useState(false);
+  const lineToolsRef = useRef<HTMLDivElement>(null);
+
+  // Close popup on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (lineToolsRef.current && !lineToolsRef.current.contains(event.target as Node)) {
+        setIsLineToolsOpen(false);
+      }
+    };
+
+    if (isLineToolsOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isLineToolsOpen]);
+
+  // Line Tools Data
+  const lineTools = [
+    { id: 'trendline', label: 'Trend Line', icon: <Slash size={16} />, favored: true },
+    { id: 'ray', label: 'Ray', icon: <ArrowUpRight size={16} />, favored: false },
+    { id: 'horizontal_ray', label: 'Horizontal Ray', icon: <ArrowRight size={16} />, favored: false },
+    { id: 'arrow_line', label: 'Arrow Line', icon: <ArrowUpRight size={16} className="rotate-45" />, favored: false },
+    { id: 'vertical_line', label: 'Vertical Line', icon: <MoveVertical size={16} />, favored: false },
+    { id: 'horizontal_line', label: 'Horizontal Line', icon: <Minus size={16} />, favored: false },
+  ];
+
+  const isLineToolActive = ['trendline', 'ray', 'horizontal_line', 'vertical_line', 'arrow_line'].includes(state.activeTool);
+
   return (
     <div className="flex flex-col w-full items-center py-2 gap-1.5">
       {/* 1. Cursor Mode */}
@@ -71,13 +108,64 @@ export const DrawingTools: React.FC = () => {
       <Separator />
 
       {/* 2. Drawing Tools Group */}
-      <ToolButton 
-          active={state.activeTool === 'trendline'} 
-          onClick={() => setTool('trendline')} 
-          icon={<TrendingUp size={20} strokeWidth={1.5} />} 
-          label="Line Tools" 
-          hasArrow
-      />
+      
+      {/* Line Tools with Popup */}
+      <div className="relative" ref={lineToolsRef}>
+          <ToolButton 
+              active={isLineToolActive}
+              onClick={() => setIsLineToolsOpen(!isLineToolsOpen)} 
+              icon={<TrendingUp size={20} strokeWidth={1.5} />} 
+              label="Line Tools" 
+              hasArrow
+          />
+
+          {isLineToolsOpen && (
+             <div className="absolute left-full top-0 ml-3 w-56 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                  <div className="px-3 py-2 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
+                      Line Tools
+                  </div>
+                  
+                  {lineTools.map((tool) => {
+                      const isActive = state.activeTool === tool.id;
+                      return (
+                          <button
+                            key={tool.id}
+                            onClick={() => {
+                                setTool(tool.id as any);
+                                setIsLineToolsOpen(false);
+                            }}
+                            className={clsx(
+                                "w-full flex items-center justify-between px-3 py-2 text-xs transition-colors group",
+                                isActive ? "bg-primary/10 text-primary" : "text-text hover:bg-surface-highlight/50"
+                            )}
+                          >
+                              <div className="flex items-center gap-3">
+                                  {/* Ensure icon color matches text unless specifically styled */}
+                                  <span className={isActive ? "text-primary" : "text-muted group-hover:text-text"}>
+                                    {tool.icon}
+                                  </span>
+                                  <span className="font-medium">{tool.label}</span>
+                              </div>
+                              
+                              {/* Star Icon */}
+                              <div 
+                                className={clsx(
+                                    "p-1 rounded hover:bg-surface transition-colors",
+                                    tool.favored ? "text-yellow-500" : "text-muted opacity-0 group-hover:opacity-100"
+                                )}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                }}
+                              >
+                                  <Star size={12} fill={tool.favored ? "currentColor" : "none"} />
+                              </div>
+                          </button>
+                      );
+                  })}
+             </div>
+          )}
+      </div>
+
       <ToolButton 
           active={state.activeTool === 'rectangle'} 
           onClick={() => setTool('rectangle')} 
