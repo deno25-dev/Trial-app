@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Settings, TrendingUp, Square, ChevronDown } from 'lucide-react';
+import { GripVertical, TrendingUp, Square, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 
 export const FloatingChartToolbar: React.FC = () => {
@@ -71,10 +71,10 @@ export const FloatingChartToolbar: React.FC = () => {
             className="flex items-center gap-1 bg-surface/90 backdrop-blur-md border border-border rounded-full px-2 py-1 shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-colors duration-300 cursor-grab active:cursor-grabbing"
         >
             
-            {/* Settings */}
-            <button className="p-2 text-muted hover:text-text hover:bg-surface-highlight rounded-full transition-colors">
-                <Settings size={18} />
-            </button>
+            {/* Drag Handle */}
+            <div className="p-2 text-muted hover:text-text transition-colors">
+                <GripVertical size={18} />
+            </div>
 
             <div className="w-px h-4 bg-border mx-1" />
 

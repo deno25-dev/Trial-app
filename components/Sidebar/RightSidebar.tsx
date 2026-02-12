@@ -31,7 +31,7 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({ icon, label, onClick, act
   <button
     onClick={onClick}
     className={clsx(
-      "w-10 h-10 flex items-center justify-center rounded-xl transition-all relative group mb-1",
+      "w-10 h-10 flex items-center justify-center rounded-xl transition-all relative group",
       active 
         ? "text-primary bg-primary/15 shadow-[0_0_20px_rgba(34,211,238,0.45)] border border-white/20" 
         : "text-muted hover:text-text hover:bg-white/5 border border-transparent"
@@ -68,7 +68,7 @@ export const RightSidebar: React.FC = () => {
   }, [isSettingsOpen]);
 
   return (
-    <div className="flex flex-col w-full items-center h-full pt-2">
+    <div className="flex flex-col w-full items-center h-full py-2 gap-1.5">
         {/* 1. Tools */}
         <SidebarButton icon={<Briefcase size={20} strokeWidth={1.5} />} label="Tools" />
         
@@ -97,11 +97,11 @@ export const RightSidebar: React.FC = () => {
             active={state.showGrid}
         />
 
-      {/* Spacer */}
-      <div className="flex-1" />
+      {/* Spacer pushes the bottom actions to the end, but they are internally spaced consistently */}
+      <div className="mt-auto" />
 
       {/* Bottom Actions */}
-      <div className="flex flex-col mb-4 w-full items-center">
+      <div className="flex flex-col w-full items-center gap-1.5 pb-2">
         {/* 7. Reload */}
         <SidebarButton 
             icon={<RefreshCw size={20} strokeWidth={1.5} />} 

@@ -29,7 +29,7 @@ const ToolButton: React.FC<ToolButtonProps> = ({ active, onClick, icon, label, h
     onClick={onClick}
     title={label}
     className={clsx(
-      "w-10 h-10 flex items-center justify-center rounded-xl transition-all relative group mb-1",
+      "w-10 h-10 flex items-center justify-center rounded-xl transition-all relative group",
       active 
         ? "text-primary bg-primary/15 shadow-[0_0_20px_rgba(34,211,238,0.45)] border border-white/20" 
         : "text-muted hover:text-text hover:bg-surface-highlight border border-transparent"
@@ -52,14 +52,14 @@ const ToolButton: React.FC<ToolButtonProps> = ({ active, onClick, icon, label, h
 );
 
 const Separator = () => (
-    <div className="w-6 h-px bg-white/10 my-2" />
+    <div className="w-6 h-px bg-white/5" />
 );
 
 export const DrawingTools: React.FC = () => {
   const { state, setTool, toggleMagnet, toggleGrid } = useChart();
 
   return (
-    <div className="flex flex-col w-full items-center pt-2">
+    <div className="flex flex-col w-full items-center py-2 gap-1.5">
       {/* 1. Cursor Mode */}
       <ToolButton 
         active={state.activeTool === 'crosshair'} 
@@ -120,10 +120,9 @@ export const DrawingTools: React.FC = () => {
           label="Measure" 
       />
 
-      {/* Spacer to push bottom tools down */}
-      <div className="flex-1 min-h-[20px]" />
+      <Separator />
 
-      {/* 4. Utility Group (Lock, Favorites, Hide) */}
+      {/* 4. Utility Group */}
       <ToolButton 
           active={false}
           onClick={() => {}} 
@@ -143,15 +142,15 @@ export const DrawingTools: React.FC = () => {
           label="Hide All Drawings" 
       />
 
+      <Separator />
+
       {/* 5. Delete */}
-      <div className="mt-2 mb-2">
-        <ToolButton 
-            active={false}
-            onClick={() => console.log('Delete All')} 
-            icon={<Trash2 size={20} strokeWidth={1.5} />} 
-            label="Remove Objects" 
-        />
-      </div>
+      <ToolButton 
+          active={false}
+          onClick={() => console.log('Delete All')} 
+          icon={<Trash2 size={20} strokeWidth={1.5} />} 
+          label="Remove Objects" 
+      />
     </div>
   );
 };
