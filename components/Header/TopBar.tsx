@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useChart } from '../../context/ChartContext';
 import { ALL_TIMEFRAMES, SKIN_CONFIG } from '../../constants';
@@ -19,7 +20,15 @@ import {
 import clsx from 'clsx';
 
 export const TopBar: React.FC = () => {
-  const { state, setInterval, toggleChartType, setSkin, toggleSearch, isSearchOpen, toggleFavorite } = useChart();
+  const { 
+      state, 
+      setInterval, 
+      toggleChartType, 
+      setSkin, 
+      toggleSearch, 
+      isSearchOpen, 
+      toggleFavorite
+  } = useChart();
   
   // Timeframe Dropdown State
   const [isTimeframeOpen, setIsTimeframeOpen] = useState(false);
@@ -51,7 +60,6 @@ export const TopBar: React.FC = () => {
   const Separator = () => <div className="h-5 w-px bg-white/10 mx-1" />;
 
   // Interactive Button Style (Matches Sidebar/DrawingTools)
-  // UPDATED: Changed border-primary/60 to border-white/20 for softer off-white edge
   const getBtnClass = (active: boolean) => clsx(
     "w-9 h-9 flex items-center justify-center rounded-lg transition-all relative group border",
     active 
@@ -70,7 +78,7 @@ export const TopBar: React.FC = () => {
   const sortedFavorites = ALL_TIMEFRAMES.filter(tf => state.favorites.includes(tf));
 
   return (
-    <div className="h-12 border-b border-border bg-surface flex items-center px-3 select-none relative z-[60] gap-1 text-muted shadow-sm transition-colors duration-300">
+    <div className="h-12 border-b border-border bg-surface flex items-center px-2 select-none relative z-[50] gap-1 text-muted shadow-sm transition-colors duration-300">
       
       {/* 1. Search */}
       <button 

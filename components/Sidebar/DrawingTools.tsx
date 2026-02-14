@@ -110,7 +110,7 @@ export const DrawingTools: React.FC = () => {
     { id: 'rotated_rectangle', label: 'Rotated Rectangle', icon: <Square size={16} className="rotate-45" />, favored: false },
   ];
 
-  const isLineToolActive = ['trendline', 'ray', 'horizontal_line', 'vertical_line', 'arrow_line'].includes(state.activeTool);
+  const isLineToolActive = ['trendline', 'ray', 'horizontal_line', 'vertical_line', 'arrow_line', 'horizontal_ray'].includes(state.activeTool);
   const isShapeToolActive = ['rectangle', 'triangle', 'rotated_rectangle'].includes(state.activeTool as string);
 
   return (

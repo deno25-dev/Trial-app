@@ -1,3 +1,5 @@
+
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TauriService } from '../services/tauriService';
 import { StickyNote, ChartLayout, TradeLog } from '../types';
@@ -59,11 +61,43 @@ export const useSaveStickyNote = () => {
       }
     },
     onSuccess: (data) => {
-      Telemetry.success('Persistence', `Sticky Note Saved Atomically`, { id: data.id });
+      // Telemetry.success('Persistence', `Sticky Note Saved Atomically`, { id: data.id });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['stickyNotes'] });
     },
+  });
+};
+
+export const useDeleteStickyNote = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await TauriService.deleteJson('StickyNotes', `${id}.json`);
+      return id;
+    },
+    onMutate: async (id) => {
+        // Optimistic Delete
+        await queryClient.cancelQueries({ queryKey: ['stickyNotes'] });
+        const previousNotes = queryClient.getQueryData<StickyNote[]>(['stickyNotes']);
+        queryClient.setQueryData<StickyNote[]>(['stickyNotes'], (old) => {
+            return old ? old.filter(n => n.id !== id) : [];
+        });
+        return { previousNotes };
+    },
+    onError: (err, id, context) => {
+        Telemetry.error('Persistence', 'Failed to delete Sticky Note', { error: err });
+        if (context?.previousNotes) {
+            queryClient.setQueryData(['stickyNotes'], context.previousNotes);
+        }
+    },
+    onSuccess: (id) => {
+      Telemetry.info('Persistence', `Sticky Note Deleted`, { id });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['stickyNotes'] });
+    }
   });
 };
 

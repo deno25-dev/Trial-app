@@ -1,5 +1,5 @@
 {
-  "name": "Red Pill Charting",
+  "name": "Red Pill Charting v1.3.0",
   "description": "High-performance, offline-first financial charting platform designed for professional analysis. Features a specialized Rust-backed architecture (simulated) with a strictly typed React frontend.",
   "requestFramePermissions": []
 }

@@ -1,4 +1,6 @@
-import { OhlcData, TradeLog, AssetMetadata, FileSystemItem, StickyNote, ChartLayout, MiniTicker } from '../types';
+
+
+import { OhlcData, TradeLog, AssetMetadata, FileSystemItem, StickyNote, ChartLayout, MiniTicker, Drawing } from '../types';
 import { BinaryParser } from '../utils/binaryParser';
 import { Telemetry } from '../utils/telemetry';
 
@@ -11,6 +13,9 @@ const MOCK_SQLITE_DB: TradeLog[] = [
     { id: 1, timestamp: Date.now() - 100000, symbol: "BTCUSDT", price: 64100, volume: 0.5, side: 'buy', indicators: { rsi: 30 } },
     { id: 2, timestamp: Date.now() - 50000, symbol: "BTCUSDT", price: 64200, volume: 0.1, side: 'sell', indicators: { rsi: 70 } }
 ];
+
+// --- MOCK DRAWINGS TABLE ---
+const MOCK_DRAWINGS: Drawing[] = [];
 
 // --- MOCK ASSET LIBRARY (Mandate 0.11.2) ---
 const MOCK_ASSETS: AssetMetadata[] = [
@@ -67,7 +72,7 @@ export const TauriService = {
     // Log outgoing IPC request
     Telemetry.debug('Bridge', `IPC Call: ${command}`, args);
 
-    await new Promise(resolve => setTimeout(resolve, 150 + Math.random() * 200));
+    await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 50)); // Faster response for drawings
 
     // Measure Latency
     const latency = performance.now() - start;
@@ -112,6 +117,33 @@ export const TauriService = {
 
     // --- LANE 3: PERSISTENCE (Atomic JSON + SQLite) ---
 
+    // Drawing Persistence
+    if (command === 'plugin:db|save_drawing') {
+        const drawing = args?.drawing as Drawing;
+        const existingIdx = MOCK_DRAWINGS.findIndex(d => d.id === drawing.id);
+        if (existingIdx >= 0) {
+            MOCK_DRAWINGS[existingIdx] = drawing;
+        } else {
+            MOCK_DRAWINGS.push(drawing);
+        }
+        Telemetry.success('Persistence', `Drawing Saved`, { id: drawing.id });
+        return true as unknown as T;
+    }
+
+    if (command === 'plugin:db|load_drawings') {
+        const sourceId = args?.sourceId as string;
+        const result = MOCK_DRAWINGS.filter(d => d.sourceId === sourceId);
+        return result as unknown as T;
+    }
+    
+    if (command === 'plugin:db|delete_drawing') {
+        const id = args?.id as string;
+        const idx = MOCK_DRAWINGS.findIndex(d => d.id === id);
+        if (idx >= 0) MOCK_DRAWINGS.splice(idx, 1);
+        Telemetry.info('Persistence', `Drawing Deleted`, { id });
+        return true as unknown as T;
+    }
+
     // Atomic Save Command
     if (command === 'plugin:persistence|save_atomic_json') {
         const { folder, filename, data } = args as { folder: string, filename: string, data: string };
@@ -131,6 +163,22 @@ export const TauriService = {
         }
     }
 
+    // Delete JSON Command
+    if (command === 'plugin:persistence|delete_json') {
+        const { folder, filename } = args as { folder: string, filename: string };
+        const path = `DB/${folder}/${filename}`;
+        
+        Telemetry.debug('Persistence', `Deleting File: ${path}`);
+        try {
+            localStorage.removeItem(path);
+            Telemetry.info('Persistence', `File Deleted: ${path}`);
+            return true as unknown as T;
+        } catch (e) {
+            Telemetry.error('Persistence', `Delete Failed: ${path}`, { error: e });
+            throw new Error(`Disk Delete Failed: ${e}`);
+        }
+    }
+
     // Read JSON Command (For loading Sticky Notes / Layouts)
     if (command === 'plugin:persistence|read_json') {
         const { folder, filename } = args as { folder: string, filename: string };
@@ -138,7 +186,7 @@ export const TauriService = {
         const data = localStorage.getItem(path);
         
         if (!data) {
-            Telemetry.warn('Persistence', `File Not Found: ${path}`);
+            // Telemetry.warn('Persistence', `File Not Found: ${path}`);
             return null as unknown as T;
         }
         return JSON.parse(data) as T;
@@ -237,6 +285,10 @@ export const TauriService = {
       const jsonString = JSON.stringify(data);
       await TauriService.invoke('plugin:persistence|save_atomic_json', { folder, filename, data: jsonString });
   },
+  
+  async deleteJson(folder: string, filename: string): Promise<void> {
+      await TauriService.invoke('plugin:persistence|delete_json', { folder, filename });
+  },
 
   async readJson<T>(folder: string, filename: string): Promise<T | null> {
       return TauriService.invoke<T>('plugin:persistence|read_json', { folder, filename });
@@ -248,6 +300,19 @@ export const TauriService = {
 
   async logTrade(trade: Omit<TradeLog, 'id'>): Promise<number> {
       return TauriService.invoke<number>('db_insert_trade', { trade });
+  },
+
+  // --- DRAWING SYSTEM API ---
+  async saveDrawing(drawing: Drawing): Promise<void> {
+      return TauriService.invoke('plugin:db|save_drawing', { drawing });
+  },
+
+  async loadDrawings(sourceId: string): Promise<Drawing[]> {
+      return TauriService.invoke<Drawing[]>('plugin:db|load_drawings', { sourceId });
+  },
+
+  async deleteDrawing(id: string): Promise<void> {
+      return TauriService.invoke('plugin:db|delete_drawing', { id });
   },
 
   // --- LANE 4: MARKET STREAM (Binance WebSocket Abstraction) ---

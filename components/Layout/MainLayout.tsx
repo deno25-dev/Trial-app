@@ -1,5 +1,7 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { TopBar } from '../Header/TopBar';
+import { TabStrip } from '../Header/TabStrip';
 import { DrawingTools } from '../Sidebar/DrawingTools';
 import { RightSidebar } from '../Sidebar/RightSidebar';
 import { BottomPanel } from '../Panels/BottomPanel';
@@ -8,6 +10,7 @@ import { FinancialChart } from '../Chart/FinancialChart';
 import { FloatingChartToolbar } from '../Chart/FloatingChartToolbar';
 import { DataExplorerSidebar } from '../Sidebar/DataExplorerSidebar';
 import { TradePanel } from '../Panels/TradePanel';
+import { StickyNoteManager } from '../Overlays/StickyNoteManager'; // New import
 import { useChart } from '../../context/ChartContext';
 import clsx from 'clsx';
 
@@ -82,9 +85,15 @@ export const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-background">
-      {/* 1. Header */}
-      <TopBar />
+    <div className="flex flex-col h-full w-full bg-background relative">
+        {/* Sticky Note Manager - Root Level Overlay */}
+        <StickyNoteManager />
+
+      {/* 1. Header Group */}
+      <div className="flex flex-col shrink-0 z-50">
+        <TabStrip />
+        <TopBar />
+      </div>
       
       <div className="flex flex-1 overflow-hidden relative">
         {/* 2. Left Toolbar */}

@@ -105,6 +105,32 @@
           -webkit-backdrop-filter: blur(8px);
           border: 1px solid var(--border-color);
       }
+
+      /* Mandate 1.6: Absolute Interaction Lock & Overlay Architecture */
+      .chart-wrapper.drawing-active {
+        cursor: crosshair !important;
+      }
+      
+      /* When drawing is active, the chart library ignores mouse events */
+      .chart-wrapper.drawing-active .chart-container {
+        pointer-events: none !important;
+      }
+      
+      /* The overlay captures events during drawing phase */
+      .chart-wrapper.drawing-active #drawing-canvas-layer {
+        pointer-events: auto !important;
+      }
+
+      /* When NOT drawing, the overlay lets events pass through to the chart */
+      .chart-wrapper:not(.drawing-active) #drawing-canvas-layer {
+        pointer-events: none;
+      }
+
+      /* Ensure the canvas overlay is always on top */
+      #drawing-canvas-layer {
+        z-index: 10;
+      }
+      
     </style>
   <script type="importmap">
 {

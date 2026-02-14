@@ -13,6 +13,12 @@ export interface OhlcData {
 
 export type AppSkin = 'default' | 'oled' | 'titanium' | 'polar' | 'forbidden-velvet' | 'chocolate-dream' | 'fairies-nest' | 'goldrush-planet' | 'rare-earth';
 
+export interface ChartTab {
+  id: string;
+  symbol: string;
+  interval: Timeframe;
+}
+
 export interface ChartState {
   symbol: string;
   interval: Timeframe;
@@ -24,9 +30,37 @@ export interface ChartState {
   theme: 'dark' | 'light'; // Mandate 0.7: Theme support
   skin: AppSkin;
   favorites: Timeframe[]; // Mandate 2.5: User-defined favorites
+  tabs: ChartTab[];
+  activeTabId: string;
 }
 
-export type DrawingToolType = 'cursor' | 'crosshair' | 'trendline' | 'ray' | 'horizontal_line' | 'vertical_line' | 'rectangle' | 'fib_retracement' | 'brush' | 'text' | 'pencil' | 'measure';
+export type DrawingToolType = 'cursor' | 'crosshair' | 'trendline' | 'ray' | 'arrow_line' | 'horizontal_line' | 'vertical_line' | 'horizontal_ray' | 'rectangle' | 'triangle' | 'rotated_rectangle' | 'fib_retracement' | 'brush' | 'text' | 'pencil' | 'measure';
+
+// --- DRAWING SYSTEM TYPES ---
+export interface Point {
+    time: number;
+    price: number;
+}
+
+export interface Drawing {
+    id: string;
+    sourceId: string;
+    type: 'trendline' | 'ray' | 'arrow_line' | 'text' | 'brush' | 'rectangle' | 'triangle' | 'rotated_rectangle' | 'horizontal_line' | 'vertical_line' | 'horizontal_ray';
+    points: Point[]; // [Start, End] or Array of points for brush/shapes
+    properties: {
+        color: string;
+        lineWidth: number;
+        lineStyle: 0 | 1 | 2 | 3 | 4; // Lightweight Charts LineStyle
+        axisLabelVisible?: boolean;
+        text?: string;
+        fontSize?: number;
+        showBackground?: boolean;
+        backgroundColor?: string;
+        filled?: boolean; // For shapes
+    };
+    selected?: boolean;
+    hovered?: boolean;
+}
 
 // Lane 4: Market Stream Data (Binance MiniTicker Format)
 export interface MiniTicker {
@@ -42,11 +76,15 @@ export interface MiniTicker {
 // Mandate 0.31: Database metadata structure
 export interface StickyNote {
   id: string;
+  title?: string; // New field for renaming
   content: string;
+  inkData?: string; // Data URL for canvas drawings
   position: { x: number; y: number };
   size: { w: number; h: number };
   color: string;
   lastModified: number;
+  isPinned?: boolean;
+  isMinimized?: boolean;
 }
 
 // Lane 3: Persistence Objects

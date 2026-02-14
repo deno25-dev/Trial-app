@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Briefcase, 
@@ -32,6 +33,8 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useChart } from '../../context/ChartContext';
+import { useSaveStickyNote } from '../../hooks/usePersistence';
+import { StickyNote as StickyNoteType } from '../../types';
 
 interface SidebarButtonProps {
   icon: React.ReactNode;
@@ -87,6 +90,25 @@ export const RightSidebar: React.FC = () => {
   // Tools Dropdown State
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
+
+  // Sticky Note Logic
+  const saveNoteMutation = useSaveStickyNote();
+
+  const handleAddStickyNote = () => {
+      const newNote: StickyNoteType = {
+          id: crypto.randomUUID(),
+          title: 'Untitled Note',
+          content: '',
+          position: { x: window.innerWidth / 2 - 125, y: window.innerHeight / 2 - 100 },
+          size: { w: 250, h: 200 },
+          color: '#fef08a', // Yellow-200
+          lastModified: Date.now(),
+          isPinned: false,
+          isMinimized: false
+      };
+      saveNoteMutation.mutate(newNote);
+      setIsToolsOpen(false); // Close dropdown
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -147,7 +169,10 @@ export const RightSidebar: React.FC = () => {
                     </div>
 
                     {/* Add Sticky Note */}
-                    <button className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                    <button 
+                        onClick={handleAddStickyNote}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors text-left group"
+                    >
                         <StickyNote size={16} className="text-yellow-500" />
                         <span>Add Sticky Note</span>
                     </button>

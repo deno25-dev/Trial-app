@@ -1,5 +1,6 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ChartState, DrawingToolType, Timeframe, AppSkin } from '../types';
+import { ChartState, DrawingToolType, Timeframe, AppSkin, ChartTab } from '../types';
 import { DEFAULT_SYMBOL, DEFAULT_TIMEFRAME, SKIN_CONFIG, FAVORITE_TIMEFRAMES } from '../constants';
 
 interface ChartContextType {
@@ -20,6 +21,9 @@ interface ChartContextType {
   toggleSearch: () => void;
   toggleDataExplorer: () => void;
   toggleTradePanel: () => void;
+  addTab: () => void;
+  removeTab: (id: string) => void;
+  selectTab: (id: string) => void;
 }
 
 const ChartContext = createContext<ChartContextType | undefined>(undefined);
@@ -35,7 +39,9 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     showFavoritesBar: true,
     theme: 'dark',
     skin: 'default',
-    favorites: [...FAVORITE_TIMEFRAMES]
+    favorites: [...FAVORITE_TIMEFRAMES],
+    tabs: [{ id: '1', symbol: DEFAULT_SYMBOL, interval: DEFAULT_TIMEFRAME }],
+    activeTabId: '1'
   });
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -83,8 +89,26 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
   }, [state.skin]);
 
-  const setSymbol = (symbol: string) => setState(prev => ({ ...prev, symbol }));
-  const setInterval = (interval: Timeframe) => setState(prev => ({ ...prev, interval }));
+  const setSymbol = (symbol: string) => {
+    setState(prev => {
+      // Update the active tab's symbol
+      const newTabs = prev.tabs.map(tab => 
+        tab.id === prev.activeTabId ? { ...tab, symbol } : tab
+      );
+      return { ...prev, symbol, tabs: newTabs };
+    });
+  };
+
+  const setInterval = (interval: Timeframe) => {
+    setState(prev => {
+      // Update the active tab's interval
+      const newTabs = prev.tabs.map(tab => 
+        tab.id === prev.activeTabId ? { ...tab, interval } : tab
+      );
+      return { ...prev, interval, tabs: newTabs };
+    });
+  };
+
   const setTool = (activeTool: DrawingToolType) => setState(prev => ({ ...prev, activeTool }));
   
   const setSkin = (skin: AppSkin) => setState(prev => ({ ...prev, skin }));
@@ -134,6 +158,59 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
   };
 
+  // --- TAB MANAGEMENT ---
+  const addTab = () => {
+    const newId = crypto.randomUUID();
+    const newTab: ChartTab = { id: newId, symbol: DEFAULT_SYMBOL, interval: DEFAULT_TIMEFRAME };
+    setState(prev => ({
+        ...prev,
+        tabs: [...prev.tabs, newTab],
+        activeTabId: newId,
+        symbol: newTab.symbol,
+        interval: newTab.interval
+    }));
+  };
+
+  const removeTab = (id: string) => {
+    setState(prev => {
+        if (prev.tabs.length <= 1) return prev; // Don't close last tab
+        const newTabs = prev.tabs.filter(t => t.id !== id);
+        
+        let newActiveId = prev.activeTabId;
+        let newSymbol = prev.symbol;
+        let newInterval = prev.interval;
+
+        // If we closed the active tab, switch to the last one
+        if (id === prev.activeTabId) {
+            const lastTab = newTabs[newTabs.length - 1];
+            newActiveId = lastTab.id;
+            newSymbol = lastTab.symbol;
+            newInterval = lastTab.interval;
+        }
+
+        return {
+            ...prev,
+            tabs: newTabs,
+            activeTabId: newActiveId,
+            symbol: newSymbol,
+            interval: newInterval
+        };
+    });
+  };
+
+  const selectTab = (id: string) => {
+    setState(prev => {
+        const tab = prev.tabs.find(t => t.id === id);
+        if (!tab) return prev;
+        return {
+            ...prev,
+            activeTabId: id,
+            symbol: tab.symbol,
+            interval: tab.interval
+        };
+    });
+  };
+
   return (
     <ChartContext.Provider value={{ 
         state, 
@@ -152,7 +229,10 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toggleTheme, 
         toggleSearch,
         toggleDataExplorer,
-        toggleTradePanel
+        toggleTradePanel,
+        addTab,
+        removeTab,
+        selectTab
     }}>
       {children}
     </ChartContext.Provider>
