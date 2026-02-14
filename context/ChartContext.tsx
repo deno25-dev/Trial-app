@@ -8,6 +8,7 @@ interface ChartContextType {
   isSearchOpen: boolean;
   isDataExplorerOpen: boolean;
   isTradePanelOpen: boolean;
+  isStickyNoteManagerOpen: boolean; // New State
   setSymbol: (symbol: string) => void;
   setInterval: (interval: Timeframe) => void;
   setTool: (tool: DrawingToolType) => void;
@@ -21,6 +22,7 @@ interface ChartContextType {
   toggleSearch: () => void;
   toggleDataExplorer: () => void;
   toggleTradePanel: () => void;
+  toggleStickyNoteManager: () => void; // New Toggle
   addTab: () => void;
   removeTab: (id: string) => void;
   selectTab: (id: string) => void;
@@ -47,6 +49,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDataExplorerOpen, setIsDataExplorerOpen] = useState(false);
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
+  const [isStickyNoteManagerOpen, setIsStickyNoteManagerOpen] = useState(false);
 
   // Ensure DOM matches initial state
   useEffect(() => {
@@ -134,6 +137,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const toggleSearch = () => setIsSearchOpen(prev => !prev);
   const toggleDataExplorer = () => setIsDataExplorerOpen(prev => !prev);
   const toggleTradePanel = () => setIsTradePanelOpen(prev => !prev);
+  const toggleStickyNoteManager = () => setIsStickyNoteManagerOpen(prev => !prev);
 
   const toggleTheme = () => {
     setState(prev => {
@@ -217,6 +221,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         isSearchOpen, 
         isDataExplorerOpen,
         isTradePanelOpen,
+        isStickyNoteManagerOpen,
         setSymbol, 
         setInterval, 
         setTool, 
@@ -230,6 +235,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toggleSearch,
         toggleDataExplorer,
         toggleTradePanel,
+        toggleStickyNoteManager,
         addTab,
         removeTab,
         selectTab

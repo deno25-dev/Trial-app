@@ -10,7 +10,8 @@ import { FinancialChart } from '../Chart/FinancialChart';
 import { FloatingChartToolbar } from '../Chart/FloatingChartToolbar';
 import { DataExplorerSidebar } from '../Sidebar/DataExplorerSidebar';
 import { TradePanel } from '../Panels/TradePanel';
-import { StickyNoteManager } from '../Overlays/StickyNoteManager'; // New import
+import { StickyNoteManager } from '../Overlays/StickyNoteManager'; // The Renderer
+import { StickyNoteListOverlay } from '../Overlays/StickyNoteListOverlay'; // The Manager UI
 import { useChart } from '../../context/ChartContext';
 import clsx from 'clsx';
 
@@ -86,8 +87,11 @@ export const MainLayout: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full w-full bg-background relative">
-        {/* Sticky Note Manager - Root Level Overlay */}
+        {/* Sticky Note Renderer - Root Level Overlay */}
         <StickyNoteManager />
+        
+        {/* Sticky Note Manager UI - Root Level Overlay */}
+        <StickyNoteListOverlay />
 
       {/* 1. Header Group */}
       <div className="flex flex-col shrink-0 z-50">

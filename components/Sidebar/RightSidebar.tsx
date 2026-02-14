@@ -72,7 +72,8 @@ export const RightSidebar: React.FC = () => {
     setTool, 
     toggleChartType,
     toggleTradePanel,
-    isTradePanelOpen
+    isTradePanelOpen,
+    toggleStickyNoteManager
   } = useChart();
   
   // Settings Dropdown State
@@ -178,7 +179,13 @@ export const RightSidebar: React.FC = () => {
                     </button>
 
                     {/* Open Sticky Note Manager */}
-                    <button className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors text-left group">
+                    <button 
+                        onClick={() => {
+                            toggleStickyNoteManager();
+                            setIsToolsOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors text-left group"
+                    >
                         <FolderOpen size={16} className="text-muted group-hover:text-text" />
                         <span>Open Sticky Note Manager</span>
                     </button>
