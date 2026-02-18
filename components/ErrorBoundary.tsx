@@ -10,9 +10,13 @@ interface ErrorBoundaryState {
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
+  public override state: ErrorBoundaryState = {
     hasError: false
   };
+
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+  }
 
   public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };

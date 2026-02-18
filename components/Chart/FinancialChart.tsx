@@ -1,5 +1,7 @@
+
+
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, HistogramData, ColorType, CrosshairMode, LineStyle, MouseEventParams, Time } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, CandlestickData, HistogramData, MouseEventParams, Time, CandlestickSeries, HistogramSeries, ColorType, CrosshairMode, PriceScaleMode } from 'lightweight-charts';
 import { useQuery } from '@tanstack/react-query';
 import { useChart } from '../../context/ChartContext';
 import { TauriService } from '../../services/tauriService';
@@ -19,6 +21,38 @@ const formatVol = (vol: number) => {
     return vol.toFixed(0);
 };
 
+// Binary Search Helper for Coordinate Mapping
+function getIndexForTime(data: OhlcData[], time: number): number {
+    let lo = 0;
+    let hi = data.length - 1;
+    while (lo <= hi) {
+        const mid = (lo + hi) >>> 1;
+        const midVal = data[mid].time;
+        if (midVal === time) return mid;
+        if (midVal < time) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return lo; // Return insertion point/nearest
+}
+
+// Extrapolation Helper
+function getTimeForIndex(index: number, data: OhlcData[]): number {
+    if (data.length === 0) return 0;
+    if (index < 0) {
+        const first = data[0];
+        const second = data[1];
+        const diff = (second?.time || 0) - first.time;
+        return first.time + (index * (diff || 60)); // Fallback 60s
+    }
+    if (index < data.length) return data[index].time;
+    
+    // Extrapolate Future
+    const last = data[data.length - 1];
+    const prev = data[data.length - 2];
+    const diff = last.time - (prev?.time || (last.time - 60));
+    return last.time + ((index - (data.length - 1)) * diff);
+}
+
 export const FinancialChart: React.FC = () => {
   // --- REFS (Stable across renders) ---
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -30,7 +64,13 @@ export const FinancialChart: React.FC = () => {
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const trendlinePrimitiveRef = useRef<TrendlinePrimitive | null>(null);
   
-  const { state, setTool } = useChart();
+  const { state, setTool, setReplayWaitingForCut, toggleInvertScale } = useChart();
+
+  // --- REPLAY SYSTEM REFS ---
+  const fullDataRef = useRef<OhlcData[]>([]); // Stores the Source of Truth dataset
+  const replayIndexRef = useRef<number>(0);
+  const replayFrameRef = useRef<number>(0);
+  const lastReplayTimeRef = useRef<number>(0);
 
   // --- PERSISTENCE HOOK (Mandate 1.4 & 0.17) ---
   const sourceId = `${state.symbol}_${state.interval}`;
@@ -41,18 +81,25 @@ export const FinancialChart: React.FC = () => {
   const isMagnetModeRef = useRef(state.isMagnetMode);
   const activeSymbolRef = useRef(state.symbol);
   const activeIntervalRef = useRef(state.interval);
+  const isReplayModeRef = useRef(state.replay.isActive);
+  const isReplayWaitingCutRef = useRef(state.replay.isWaitingForCut);
 
   // Drawing Interaction State
   const currentDrawingRef = useRef<Drawing | null>(null);
   
   // MANDATE 1.4: Shadow Registry (Transient Drawings)
-  // Holds drawings that are "committing" but potentially not yet fully round-tripped by the DB.
-  // This ensures zero flicker.
   const transientDrawingsRef = useRef<Drawing[]>([]);
 
   // Separate ref for Brush points (screen coords) to avoid heavy re-calculations during drag
   const currentBrushPathRef = useRef<{x: number, y: number}[]>([]);
   
+  // Drag Origin for "Move Whole Shape" logic
+  const dragOriginRef = useRef<{
+      startLogical: number;
+      startPrice: number;
+      originalPoints: Point[];
+  } | null>(null);
+
   const drawingStateRef = useRef<{
       phase: 'idle' | 'drawing' | 'dragging';
       activeDrawingId: string | null;
@@ -60,7 +107,6 @@ export const FinancialChart: React.FC = () => {
   }>({ phase: 'idle', activeDrawingId: null, dragAnchor: null });
 
   // --- REACT STATE ---
-  // Note: 'drawings' is now managed by the hook
   const [legend, setLegend] = useState<{
     open: string; high: string; low: string; close: string;
     change: string; changePercent: string; volume: string; color: string;
@@ -80,22 +126,37 @@ export const FinancialChart: React.FC = () => {
   // Selected Drawing State for Toolbar
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
 
+  // --- KEYBOARD SHORTCUTS ---
+  useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+          if (e.altKey && e.code === 'KeyI') {
+              e.preventDefault();
+              toggleInvertScale();
+          }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleInvertScale]);
+
   // --- 1. TOOL & STATE SYNC (No Re-Render of Chart) ---
   useEffect(() => {
-    // Update Refs
     activeToolRef.current = state.activeTool;
     isMagnetModeRef.current = state.isMagnetMode;
+    isReplayModeRef.current = state.replay.isActive;
+    isReplayWaitingCutRef.current = state.replay.isWaitingForCut;
 
     // Apply CSS Locking Class
     if (chartWrapperRef.current) {
         if (state.activeTool !== 'cursor' && state.activeTool !== 'crosshair') {
             chartWrapperRef.current.classList.add('drawing-active');
+        } else if (state.replay.isWaitingForCut) {
+            chartWrapperRef.current.style.cursor = 'cell'; // Scissors/Cut cursor visual
         } else {
             chartWrapperRef.current.classList.remove('drawing-active');
+            chartWrapperRef.current.style.cursor = '';
         }
     }
 
-    // Clear selection if changing tools (except if just toggling cursor)
     if (state.activeTool !== 'cursor') {
         setSelectedDrawingId(null);
         setLocalDrawings(prev => {
@@ -105,13 +166,12 @@ export const FinancialChart: React.FC = () => {
         });
     }
 
-  }, [state.activeTool, state.isMagnetMode]);
+  }, [state.activeTool, state.isMagnetMode, state.replay.isWaitingForCut, state.replay.isActive]);
 
   // Sync Symbol/Interval Refs
   useEffect(() => {
     activeSymbolRef.current = state.symbol;
     activeIntervalRef.current = state.interval;
-    // Clear transient on symbol change to avoid ghost drawings from other charts
     transientDrawingsRef.current = [];
     trendlinePrimitiveRef.current?.setTransientDrawings([]);
   }, [state.symbol, state.interval]);
@@ -122,28 +182,34 @@ export const FinancialChart: React.FC = () => {
     queryKey: ['chartData', state.symbol, state.interval],
     queryFn: () => TauriService.loadChartData(state.symbol, state.interval),
     refetchOnWindowFocus: false,
-    // Critical: Do NOT depend on activeTool
   });
+
+  // Sync Data to FullDataRef
+  useEffect(() => {
+      if (chartData && chartData.length > 0) {
+          fullDataRef.current = [...chartData];
+      }
+  }, [chartData]);
 
   // Sync Drawings from Registry to Primitive (Hydration Loop)
   useEffect(() => {
      if (trendlinePrimitiveRef.current) {
          trendlinePrimitiveRef.current.setDrawings(drawings);
          
-         // Clean up Shadow Registry: Remove items that are now present in the main 'drawings' list
-         // This prevents duplication while maintaining visibility continuity
+         // Clean up Shadow Registry
          const persistedIds = new Set(drawings.map(d => d.id));
          transientDrawingsRef.current = transientDrawingsRef.current.filter(d => !persistedIds.has(d.id));
          trendlinePrimitiveRef.current.setTransientDrawings(transientDrawingsRef.current);
+         
+         trendlinePrimitiveRef.current.requestUpdate();
      }
   }, [drawings]);
 
 
   // --- 3. CHART ENGINE INITIALIZATION (Run Once) ---
-  // Resolve theme for initial create
   const initialTheme = useMemo(() => {
       return state.theme === 'light' ? LIGHT_THEME_CHART : SKIN_CONFIG[state.skin].chart;
-  }, []); // Run once
+  }, []); 
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -165,33 +231,28 @@ export const FinancialChart: React.FC = () => {
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: {
-            width: 1,
-            color: initialTheme.crosshair,
-            style: LineStyle.Dashed,
-            labelBackgroundColor: initialTheme.crosshair,
-        },
-        horzLine: {
-            width: 1,
-            color: initialTheme.crosshair,
-            style: LineStyle.Dashed,
-            labelBackgroundColor: initialTheme.crosshair,
-        },
+        vertLine: { width: 1, color: initialTheme.crosshair, style: 2, labelBackgroundColor: initialTheme.crosshair },
+        horzLine: { width: 1, color: initialTheme.crosshair, style: 2, labelBackgroundColor: initialTheme.crosshair },
       },
       timeScale: {
         borderColor: initialTheme.grid,
         timeVisible: true,
         secondsVisible: false,
+        shiftVisibleRangeOnNewBar: false // Mandate 0.22.1 for Replay
       },
       rightPriceScale: {
         borderColor: initialTheme.grid,
+        // Initial Scale Settings
+        mode: PriceScaleMode.Normal,
+        autoScale: true,
+        invertScale: false
       },
     });
 
     chartApiRef.current = chart;
 
     // Add Series
-    const volumeSeries = chart.addHistogramSeries({
+    const volumeSeries = chart.addSeries(HistogramSeries, {
         color: '#26a69a',
         priceFormat: { type: 'volume' },
         priceScaleId: '', 
@@ -199,7 +260,7 @@ export const FinancialChart: React.FC = () => {
     volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
     volumeSeriesRef.current = volumeSeries;
 
-    const series = chart.addCandlestickSeries({
+    const series = chart.addSeries(CandlestickSeries, {
       upColor: initialTheme.candleUp,
       downColor: initialTheme.candleDown,
       borderVisible: false,
@@ -212,7 +273,6 @@ export const FinancialChart: React.FC = () => {
     const trendlinePrimitive = new TrendlinePrimitive();
     series.attachPrimitive(trendlinePrimitive);
     trendlinePrimitiveRef.current = trendlinePrimitive;
-    // Immediate sync if drawings loaded before chart init
     trendlinePrimitive.setDrawings(drawings);
 
     // Legend Listener
@@ -232,7 +292,6 @@ export const FinancialChart: React.FC = () => {
       const { width, height } = entries[0].contentRect;
       chartApiRef.current.applyOptions({ width, height });
       
-      // Resize Overlay Canvas
       if (overlayCanvasRef.current) {
           overlayCanvasRef.current.width = width;
           overlayCanvasRef.current.height = height;
@@ -245,9 +304,9 @@ export const FinancialChart: React.FC = () => {
       chart.remove();
       Telemetry.debug('UI', 'Chart Engine Disposed');
     };
-  }, []); // CRITICAL: Empty dependency array ensures chart persists across tool changes
+  }, []);
 
-  // --- 4. THEME & GRID UPDATES (Declarative) ---
+  // --- 4. THEME & GRID & SCALE UPDATES (Declarative) ---
   const currentTheme = useMemo(() => {
       return state.theme === 'light' ? LIGHT_THEME_CHART : SKIN_CONFIG[state.skin].chart;
   }, [state.theme, state.skin]);
@@ -255,6 +314,11 @@ export const FinancialChart: React.FC = () => {
   useEffect(() => {
     if (!chartApiRef.current || !seriesRef.current) return;
     
+    // Map Context Mode to Library Mode
+    let mode = PriceScaleMode.Normal;
+    if (state.priceScaleMode === 'Logarithmic') mode = PriceScaleMode.Logarithmic;
+    if (state.priceScaleMode === 'Percentage') mode = PriceScaleMode.Percentage;
+
     chartApiRef.current.applyOptions({
         layout: {
             background: { type: ColorType.Solid, color: currentTheme.background },
@@ -265,7 +329,12 @@ export const FinancialChart: React.FC = () => {
             horzLines: { color: currentTheme.grid, visible: state.showGrid },
         },
         timeScale: { borderColor: currentTheme.grid },
-        rightPriceScale: { borderColor: currentTheme.grid },
+        rightPriceScale: { 
+            borderColor: currentTheme.grid,
+            mode: mode,
+            autoScale: state.isAutoScale,
+            invertScale: state.isInverted
+        },
         crosshair: {
             vertLine: { color: currentTheme.crosshair, labelBackgroundColor: currentTheme.crosshair },
             horzLine: { color: currentTheme.crosshair, labelBackgroundColor: currentTheme.crosshair },
@@ -278,10 +347,9 @@ export const FinancialChart: React.FC = () => {
         wickDownColor: currentTheme.wickDown,
     });
     
-    // Force redraw primitive to pick up new selection colors if needed
     trendlinePrimitiveRef.current?.requestUpdate();
 
-  }, [currentTheme, state.showGrid]);
+  }, [currentTheme, state.showGrid, state.priceScaleMode, state.isAutoScale, state.isInverted]);
 
 
   // --- 5. INTERACTION LOGIC (Attached to Wrapper to capture events) ---
@@ -294,8 +362,6 @@ export const FinancialChart: React.FC = () => {
         const rect = wrapper.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        
-        // Defensive Check: Ensure we are within bounds before asking chart lib
         if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
 
         const time = chartApiRef.current.timeScale().coordinateToTime(x);
@@ -308,7 +374,6 @@ export const FinancialChart: React.FC = () => {
     const getMagnetPoint = (point: { x: number, y: number, time: number, price: number }) => {
         if (!isMagnetModeRef.current || !chartData || !seriesRef.current) return null;
         
-        // Basic magnet logic reused
         const candle = chartData.find(d => d.time === point.time);
         if (!candle) return null;
 
@@ -320,7 +385,7 @@ export const FinancialChart: React.FC = () => {
         let nearestPrice = candle.close;
 
         for (const p of prices) {
-            const priceY = series.priceScale().priceToCoordinate(p);
+            const priceY = series.priceToCoordinate(p);
             if (priceY !== null) {
                 const dist = Math.sqrt((point.x - candleX)**2 + (point.y - priceY)**2);
                 if (dist < 30 && dist < minDist) {
@@ -343,10 +408,52 @@ export const FinancialChart: React.FC = () => {
         const magnet = getMagnetPoint(point);
         if (magnet) finalPoint = magnet;
 
-        // A. CURSOR MODE (Selection/Dragging)
+        // --- REPLAY CUT LOGIC ---
+        if (isReplayWaitingCutRef.current) {
+            const index = getIndexForTime(fullDataRef.current, point.time);
+            replayIndexRef.current = index;
+            
+            // Perform the Cut
+            if (seriesRef.current && volumeSeriesRef.current) {
+                const sliced = fullDataRef.current.slice(0, index + 1);
+                
+                // Map data for update
+                const candles = sliced.map(d => ({ time: d.time as any, open: d.open, high: d.high, low: d.low, close: d.close }));
+                const volumes = sliced.map(d => ({ time: d.time as any, value: d.volume, color: (d.close >= d.open ? currentTheme.candleUp : currentTheme.candleDown) + '80' }));
+
+                seriesRef.current.setData(candles);
+                volumeSeriesRef.current.setData(volumes);
+                
+                // Drop Visual Marker (Vertical Line)
+                const marker: Drawing = {
+                    id: crypto.randomUUID(),
+                    sourceId: `${activeSymbolRef.current}_${activeIntervalRef.current}`,
+                    type: 'vertical_line',
+                    points: [finalPoint],
+                    properties: { color: '#f59e0b', lineWidth: 2, lineStyle: 1 }, // Amber Dashed
+                    selected: false
+                };
+                commitDrawing(marker);
+            }
+            
+            // Exit "Waiting for Cut" state
+            setReplayWaitingForCut(false);
+            return;
+        }
+
+        // --- NORMAL DRAWING LOGIC ---
         if (tool === 'cursor' || tool === 'crosshair') {
             const primitive = trendlinePrimitiveRef.current;
             const hit = primitive?.hitTest(point.x, point.y);
+            
+            if (selectedDrawingId && (!hit || hit.drawing.id !== selectedDrawingId)) {
+                 setSelectedDrawingId(null);
+                 setLocalDrawings(prev => {
+                     const next = prev.map(d => ({ ...d, selected: false }));
+                     primitive?.setDrawings(next);
+                     return next;
+                 });
+            }
             
             if (hit) {
                 e.preventDefault(); 
@@ -355,7 +462,18 @@ export const FinancialChart: React.FC = () => {
                 const drawing = primitive?.drawings.find(d => d.id === hit.drawing.id);
                 if (drawing) {
                     currentDrawingRef.current = { ...drawing, selected: true };
+                    primitive?.setActiveInteractionId(drawing.id);
+
+                    const logical = chartApiRef.current?.timeScale().coordinateToLogical(point.x);
                     
+                    if (logical !== null && logical !== undefined) {
+                        dragOriginRef.current = {
+                            startLogical: logical,
+                            startPrice: point.price,
+                            originalPoints: [...drawing.points]
+                        };
+                    }
+
                     drawingStateRef.current = {
                         phase: 'dragging',
                         activeDrawingId: drawing.id,
@@ -380,149 +498,69 @@ export const FinancialChart: React.FC = () => {
             return;
         }
 
-        // B. TEXT TOOL (Create)
         if (tool === 'text') {
-            e.preventDefault();
-            e.stopPropagation();
-            setTextModal({
-                isOpen: true,
-                x: e.clientX,
-                y: e.clientY,
-                time: finalPoint.time,
-                price: finalPoint.price,
-                initialText: ''
-            });
+            e.preventDefault(); e.stopPropagation();
+            setTextModal({ isOpen: true, x: e.clientX, y: e.clientY, time: finalPoint.time, price: finalPoint.price, initialText: '' });
             return;
         }
 
-        // C. BRUSH (Freehand)
         if (tool === 'brush') {
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             currentBrushPathRef.current = [{ x: point.x, y: point.y }];
-            
-            const newDrawing: Drawing = {
-                id: crypto.randomUUID(),
-                sourceId: `${activeSymbolRef.current}_${activeIntervalRef.current}`,
-                type: 'brush',
-                points: [],
-                properties: {
-                    color: currentTheme.crosshair,
-                    lineWidth: 2,
-                    lineStyle: 0
-                },
-                selected: true
-            };
+            const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: `${activeSymbolRef.current}_${activeIntervalRef.current}`, type: 'brush', points: [], properties: { color: currentTheme.crosshair, lineWidth: 2, lineStyle: 0 }, selected: true };
             currentDrawingRef.current = newDrawing;
             drawingStateRef.current = { phase: 'drawing', activeDrawingId: newDrawing.id, dragAnchor: null };
             return;
         }
 
-        // D. INFINITE LINES (Horizontal/Vertical) & RAYS
         if (tool === 'horizontal_line' || tool === 'vertical_line' || tool === 'horizontal_ray') {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const newDrawing: Drawing = {
-                id: crypto.randomUUID(),
-                sourceId: `${activeSymbolRef.current}_${activeIntervalRef.current}`,
-                type: tool as any,
-                points: [finalPoint], // Single anchor point
-                properties: {
-                    color: currentTheme.crosshair,
-                    lineWidth: 2,
-                    lineStyle: 0
-                },
-                selected: true
-            };
-
-            // Use Hook for Persistence
+            e.preventDefault(); e.stopPropagation();
+            const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: `${activeSymbolRef.current}_${activeIntervalRef.current}`, type: tool as any, points: [finalPoint], properties: { color: currentTheme.crosshair, lineWidth: 2, lineStyle: 0 }, selected: true };
             saveDrawing(newDrawing);
-            
             setSelectedDrawingId(newDrawing.id);
             setTool('cursor');
             return;
         }
 
-        // E. GEOMETRIC SHAPES & LINES (Trendline, Ray, Rect, Triangle...)
-        
-        // Multi-Step Drawing Logic
-        if (drawingStateRef.current.phase === 'drawing' && currentDrawingRef.current) {
-            // We are already drawing a shape with >2 points (Triangle/RotatedRect)
-            // This click sets the next point
-            return; // Logic handled implicitly via state flow if we don't reset state on MouseUp.
-        }
-
-        // START NEW DRAWING
-        e.preventDefault();
-        e.stopPropagation();
-
+        e.preventDefault(); e.stopPropagation();
         let initialPoints = [finalPoint, finalPoint];
-        if (tool === 'triangle' || tool === 'rotated_rectangle') {
-            initialPoints = [finalPoint, finalPoint, finalPoint];
-        }
+        if (tool === 'triangle' || tool === 'rotated_rectangle') initialPoints = [finalPoint, finalPoint, finalPoint];
 
-        const newDrawing: Drawing = {
-            id: crypto.randomUUID(),
-            sourceId: `${activeSymbolRef.current}_${activeIntervalRef.current}`,
-            type: tool as any,
-            points: initialPoints,
-            properties: {
-                color: currentTheme.crosshair,
-                lineWidth: 2,
-                lineStyle: 0,
-                showBackground: ['rectangle', 'triangle', 'rotated_rectangle'].includes(tool as string), 
-                backgroundColor: currentTheme.crosshair + '33'
-            },
-            selected: true
-        };
-
+        const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: `${activeSymbolRef.current}_${activeIntervalRef.current}`, type: tool as any, points: initialPoints, properties: { color: currentTheme.crosshair, lineWidth: 2, lineStyle: 0, showBackground: ['rectangle', 'triangle', 'rotated_rectangle'].includes(tool as string), backgroundColor: currentTheme.crosshair + '33' }, selected: true };
         currentDrawingRef.current = newDrawing;
         trendlinePrimitiveRef.current?.updateTempDrawing(newDrawing);
-        
-        drawingStateRef.current = {
-            phase: 'drawing',
-            activeDrawingId: newDrawing.id,
-            dragAnchor: 1 // Start dragging index 1 (P2)
-        };
+        drawingStateRef.current = { phase: 'drawing', activeDrawingId: newDrawing.id, dragAnchor: 1 };
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-        // FIX 1: Null-Safe Guard (Mandate 0.21 / Fix 7)
-        // If we are not actively interacting, or if the chart isn't ready, bail out immediately.
         const state = drawingStateRef.current;
+        const drawing = currentDrawingRef.current;
+
         if (state.phase === 'idle' && !state.activeDrawingId) return;
-        if (!currentDrawingRef.current) return; // Critical Guard
+        if (!drawing) return;
 
         const point = getChartPoint(e);
-        if (!point) return; // FIX 2: Coordinate Safety
+        if (!point) return; 
 
         let finalPoint: Point = { time: point.time, price: point.price };
         const magnet = getMagnetPoint(point);
         if (magnet) finalPoint = magnet;
 
-        const d = currentDrawingRef.current;
-
         if (state.phase === 'drawing') {
-            
-            // Brush Logic
-            if (d.type === 'brush') {
+            if (drawing.type === 'brush') {
                 const ctx = overlayCanvasRef.current?.getContext('2d');
                 if (ctx) {
                     const path = currentBrushPathRef.current;
-                    // FIX: Safety guard for race condition where mouseMove fires after mouseUp has cleared the path
                     if (path.length === 0) return;
-                    
                     const lastPt = path[path.length - 1];
                     const newPt = { x: point.x, y: point.y };
                     path.push(newPt);
                     ctx.beginPath();
-                    // FIX: Only draw if lastPt exists
                     if (lastPt) {
                         ctx.moveTo(lastPt.x, lastPt.y);
                         ctx.lineTo(newPt.x, newPt.y);
-                        ctx.strokeStyle = d.properties.color;
-                        ctx.lineWidth = d.properties.lineWidth;
+                        ctx.strokeStyle = drawing.properties.color;
+                        ctx.lineWidth = drawing.properties.lineWidth;
                         ctx.lineCap = 'round';
                         ctx.lineJoin = 'round';
                         ctx.stroke();
@@ -531,30 +569,41 @@ export const FinancialChart: React.FC = () => {
                 return;
             }
 
-            // Shape Logic: Update the point currently being dragged (state.dragAnchor)
             if (state.dragAnchor !== null) {
-                const newPoints = [...d.points];
-                if (state.dragAnchor < newPoints.length) {
-                    newPoints[state.dragAnchor] = finalPoint;
-                    
-                    currentDrawingRef.current = { ...d, points: newPoints };
-                    trendlinePrimitiveRef.current?.updateTempDrawing(currentDrawingRef.current);
-                }
+                if (state.dragAnchor >= drawing.points.length) return;
+                const newPoints = [...drawing.points];
+                newPoints[state.dragAnchor] = finalPoint;
+                currentDrawingRef.current = { ...drawing, points: newPoints };
+                trendlinePrimitiveRef.current?.updateTempDrawing(currentDrawingRef.current);
             }
-            
         } else if (state.phase === 'dragging') {
-            if (d.type === 'text') {
-                 currentDrawingRef.current = { ...d, points: [finalPoint] };
-                 trendlinePrimitiveRef.current?.updateTempDrawing(currentDrawingRef.current);
-                 return;
+            if (state.dragAnchor !== null) {
+                if (drawing.type === 'text') {
+                     currentDrawingRef.current = { ...drawing, points: [finalPoint] };
+                     trendlinePrimitiveRef.current?.updateTempDrawing(currentDrawingRef.current);
+                     return;
+                }
+                if (state.dragAnchor >= drawing.points.length) return;
+                const newPoints = [...drawing.points];
+                newPoints[state.dragAnchor] = finalPoint;
+                currentDrawingRef.current = { ...drawing, points: newPoints };
+                trendlinePrimitiveRef.current?.updateTempDrawing(currentDrawingRef.current);
+                return;
             }
 
-            // Standard dragging for multi-point tools or single-point H/V lines
-            if (state.dragAnchor !== null && d.type !== 'brush') {
-                const newPoints = [...d.points];
-                if (state.dragAnchor < newPoints.length) {
-                    newPoints[state.dragAnchor] = finalPoint;
-                    currentDrawingRef.current = { ...d, points: newPoints };
+            if (state.dragAnchor === null && dragOriginRef.current && chartData) {
+                const currentLogical = chartApiRef.current?.timeScale().coordinateToLogical(point.x);
+                if (currentLogical !== null && currentLogical !== undefined) {
+                    const { startLogical, startPrice, originalPoints } = dragOriginRef.current;
+                    const deltaIdx = Math.round(currentLogical - startLogical);
+                    const deltaPrice = point.price - startPrice;
+                    const newPoints = originalPoints.map(p => {
+                        const originalIdx = getIndexForTime(chartData, p.time);
+                        const newIdx = originalIdx + deltaIdx;
+                        const newTime = getTimeForIndex(newIdx, chartData);
+                        return { time: newTime, price: p.price + deltaPrice };
+                    });
+                    currentDrawingRef.current = { ...drawing, points: newPoints };
                     trendlinePrimitiveRef.current?.updateTempDrawing(currentDrawingRef.current);
                 }
             }
@@ -564,82 +613,67 @@ export const FinancialChart: React.FC = () => {
     const handleMouseUp = () => {
         if (!currentDrawingRef.current) {
             drawingStateRef.current = { phase: 'idle', activeDrawingId: null, dragAnchor: null };
+            dragOriginRef.current = null;
+            trendlinePrimitiveRef.current?.setActiveInteractionId(null);
             return;
         }
 
         const d = currentDrawingRef.current;
         const state = drawingStateRef.current;
 
-        // BRUSH COMMIT
         if (d.type === 'brush') {
             const path = currentBrushPathRef.current;
             const timeScale = chartApiRef.current?.timeScale();
             const series = seriesRef.current;
-
             if (timeScale && series && path.length > 1) {
                 const convertedPoints: Point[] = path.map(pt => {
                     const time = timeScale.coordinateToTime(pt.x) as number;
                     const price = series.coordinateToPrice(pt.y) as number;
                     return { time, price };
                 }).filter(p => p.time !== null && p.price !== null);
-
                 const finalDrawing = { ...d, points: convertedPoints };
                 commitDrawing(finalDrawing);
-                
                 const ctx = overlayCanvasRef.current?.getContext('2d');
                 ctx?.clearRect(0, 0, overlayCanvasRef.current?.width || 0, overlayCanvasRef.current?.height || 0);
                 currentBrushPathRef.current = [];
-            } else {
-                abortDrawing();
-            }
+            } else { abortDrawing(); }
             return;
         }
 
-        // SHAPE COMMIT / STEP LOGIC
         if (state.phase === 'drawing') {
-            // Check if we need more points
             if (d.type === 'triangle' || d.type === 'rotated_rectangle') {
-                if (state.dragAnchor === 1) {
-                    // Just finished P2. Move to P3.
-                    drawingStateRef.current = { ...state, dragAnchor: 2 };
-                    return; // Don't commit yet
-                }
+                if (state.dragAnchor === 1) { drawingStateRef.current = { ...state, dragAnchor: 2 }; return; }
             }
-            
-            // If we are here, we are done (dragAnchor was last point or 2-point shape)
             commitDrawing(d);
             setTool('cursor');
             return;
         }
 
-        // DRAGGING COMMIT
-        if (state.phase === 'dragging') {
-            commitDrawing(d);
-        }
+        if (state.phase === 'dragging') commitDrawing(d);
+        dragOriginRef.current = null;
     };
 
     const commitDrawing = async (drawing: Drawing) => {
-        // MANDATE 1.4: Push to Shadow Registry immediately for Zero-Flicker
-        transientDrawingsRef.current.push(drawing);
+        const exists = transientDrawingsRef.current.find(d => d.id === drawing.id);
+        if (!exists) transientDrawingsRef.current.push(drawing);
+        else transientDrawingsRef.current = transientDrawingsRef.current.map(d => d.id === drawing.id ? drawing : d);
+        
         trendlinePrimitiveRef.current?.setTransientDrawings([...transientDrawingsRef.current]);
-
-        // Synchronously reset state to stop interactive updates
+        trendlinePrimitiveRef.current?.setActiveInteractionId(null);
         drawingStateRef.current = { phase: 'idle', activeDrawingId: null, dragAnchor: null };
         trendlinePrimitiveRef.current?.updateTempDrawing(null);
         currentDrawingRef.current = null;
-
-        // Use hook to save and update state (Optimistic -> Save -> Fetch Loop)
-        // When drawings come back via prop, useEffect will clean up the transient list
         await saveDrawing(drawing);
     };
 
     const abortDrawing = () => {
         trendlinePrimitiveRef.current?.updateTempDrawing(null);
+        trendlinePrimitiveRef.current?.setActiveInteractionId(null);
         currentDrawingRef.current = null;
         drawingStateRef.current = { phase: 'idle', activeDrawingId: null, dragAnchor: null };
+        dragOriginRef.current = null;
     };
 
-    // Attach to Wrapper with capture for MouseDown to intercept before chart
     wrapper.addEventListener('mousedown', handleMouseDown, { capture: true });
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -650,7 +684,7 @@ export const FinancialChart: React.FC = () => {
         window.removeEventListener('mouseup', handleMouseUp);
     };
 
-  }, [chartData, currentTheme]); // Re-bind if data/theme radically changes, but Ref access handles tool changes
+  }, [chartData, currentTheme]);
 
   // --- 6. LEGEND SYNC ---
   const latestDataRef = useRef<{candle: OhlcData, vol: number} | null>(null);
@@ -678,15 +712,60 @@ export const FinancialChart: React.FC = () => {
       if (latestDataRef.current) updateLegend(latestDataRef.current.candle, latestDataRef.current.vol);
   };
 
-  // Sync Data to Chart (Lightweight operation)
+  // --- REPLAY ANIMATION LOOP ---
   useEffect(() => {
+    if (!state.replay.isPlaying) {
+        cancelAnimationFrame(replayFrameRef.current);
+        return;
+    }
+
+    const animate = (timestamp: number) => {
+        if (!lastReplayTimeRef.current) lastReplayTimeRef.current = timestamp;
+        
+        // Control speed
+        const interval = 1000 / (1 * state.replay.speed); // Base 1 tick per second * speed multiplier
+        
+        if (timestamp - lastReplayTimeRef.current > interval) {
+             const nextIndex = replayIndexRef.current + 1;
+             
+             if (nextIndex < fullDataRef.current.length) {
+                 const d = fullDataRef.current[nextIndex];
+                 replayIndexRef.current = nextIndex;
+
+                 if (seriesRef.current && volumeSeriesRef.current) {
+                     // Using .update() for performance
+                     seriesRef.current.update({ time: d.time as any, open: d.open, high: d.high, low: d.low, close: d.close });
+                     const isUp = d.close >= d.open;
+                     volumeSeriesRef.current.update({ time: d.time as any, value: d.volume, color: (isUp ? currentTheme.candleUp : currentTheme.candleDown) + '80' });
+                 }
+             } else {
+                 // End of data
+                 cancelAnimationFrame(replayFrameRef.current);
+                 return;
+             }
+             
+             lastReplayTimeRef.current = timestamp;
+        }
+
+        replayFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    replayFrameRef.current = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(replayFrameRef.current);
+  }, [state.replay.isPlaying, state.replay.speed, currentTheme]);
+
+  // Sync Data to Chart (Lightweight operation) - ONLY IF NOT IN REPLAY MODE
+  // If in Replay Mode, we handle data manually via the Cut or Loop.
+  useEffect(() => {
+    if (state.replay.isActive) return; // Skip standard update if Replay is on
+
     if (seriesRef.current && volumeSeriesRef.current && chartData && chartData.length > 0) {
       const start = performance.now();
       
       const candles: CandlestickData[] = [];
       const volumes: HistogramData[] = [];
       
-      // Optimization: pre-allocate or map
       for(let i=0; i<chartData.length; i++) {
           const d = chartData[i];
           const time = d.time as any;
@@ -697,112 +776,63 @@ export const FinancialChart: React.FC = () => {
 
       seriesRef.current.setData(candles);
       volumeSeriesRef.current.setData(volumes);
-
-      // INJECT DATA INTO PRIMITIVE FOR COORDINATE RESOLUTION
-      if (trendlinePrimitiveRef.current) {
-          trendlinePrimitiveRef.current.setData(chartData);
-      }
+      trendlinePrimitiveRef.current?.setData(chartData);
 
       const last = chartData[chartData.length - 1];
       latestDataRef.current = { candle: last, vol: last.volume };
       updateLegendWithLatest();
-
-      // Reactive Hydration: Trigger primitive update now that time scale is populated
       trendlinePrimitiveRef.current?.requestUpdate();
 
       const perf = performance.now() - start;
       if (perf > 16) Telemetry.warn('Performance', 'Chart Render Dropped Frame', { duration: `${perf.toFixed(2)}ms` });
     }
-  }, [chartData, currentTheme]); 
+  }, [chartData, currentTheme, state.replay.isActive]); 
 
   // --- TEXT TOOL HANDLERS ---
   const handleTextApply = (text: string) => {
       const isEdit = !!textModal.editDrawingId;
-
       if (isEdit) {
-           // EDIT MODE: Use hook
            const current = drawings.find(d => d.id === textModal.editDrawingId);
-           if (current) {
-               const updated = { ...current, properties: { ...current.properties, text } };
-               saveDrawing(updated);
-           }
+           if (current) saveDrawing({ ...current, properties: { ...current.properties, text } });
       } else {
-           // CREATE MODE
-           if (!text.trim()) {
-               setTextModal({ ...textModal, isOpen: false });
-               setTool('cursor');
-               return;
-           }
-
-           const newDrawing: Drawing = {
-                id: crypto.randomUUID(),
-                sourceId: `${state.symbol}_${state.interval}`,
-                type: 'text',
-                points: [{ time: textModal.time, price: textModal.price }],
-                properties: {
-                    color: currentTheme.text,
-                    lineWidth: 1,
-                    lineStyle: 0,
-                    text: text,
-                    fontSize: 14,
-                    showBackground: false
-                },
-                selected: true
-            };
-
-            saveDrawing(newDrawing);
-            
-            setSelectedDrawingId(newDrawing.id);
-            setTool('cursor');
+           if (!text.trim()) { setTextModal({ ...textModal, isOpen: false }); setTool('cursor'); return; }
+           const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: `${state.symbol}_${state.interval}`, type: 'text', points: [{ time: textModal.time, price: textModal.price }], properties: { color: currentTheme.text, lineWidth: 1, lineStyle: 0, text: text, fontSize: 14, showBackground: false }, selected: true };
+           saveDrawing(newDrawing);
+           setSelectedDrawingId(newDrawing.id);
+           setTool('cursor');
       }
-
       setTextModal({ ...textModal, isOpen: false });
   };
 
   const selectedDrawing = useMemo(() => drawings.find(d => d.id === selectedDrawingId), [drawings, selectedDrawingId]);
 
+  const handleTextEditStart = () => {
+      if (!selectedDrawing || selectedDrawing.type !== 'text') return;
+      const p1 = selectedDrawing.points[0];
+      const timeScale = chartApiRef.current?.timeScale();
+      const series = seriesRef.current;
+      if (timeScale && series) {
+          const x = timeScale.timeToCoordinate(p1.time as Time) ?? 0;
+          const y = series.priceToCoordinate(p1.price) ?? 0;
+          const rect = chartWrapperRef.current?.getBoundingClientRect();
+          const pageX = (rect?.left ?? 0) + x;
+          const pageY = (rect?.top ?? 0) + y;
+          setTextModal({ isOpen: true, x: pageX, y: pageY, time: p1.time, price: p1.price, initialText: selectedDrawing.properties.text || '', editDrawingId: selectedDrawing.id });
+      }
+  };
+
   const handleDrawingUpdate = (updates: Partial<Drawing['properties']>) => {
       if (!selectedDrawingId) return;
       const current = drawings.find(d => d.id === selectedDrawingId);
-      if (current) {
-          const updated = { ...current, properties: { ...current.properties, ...updates } };
-          saveDrawing(updated);
-      }
+      if (current) saveDrawing({ ...current, properties: { ...current.properties, ...updates } });
   };
 
   const handleDrawingDelete = () => {
       if (!selectedDrawingId) return;
       deleteDrawing(selectedDrawingId);
+      trendlinePrimitiveRef.current?.setActiveInteractionId(null);
+      trendlinePrimitiveRef.current?.updateTempDrawing(null);
       setSelectedDrawingId(null);
-  };
-
-  const handleTextEditStart = () => {
-      if (!selectedDrawing || selectedDrawing.type !== 'text') return;
-      
-      // Calculate screen position for modal
-      const p1 = selectedDrawing.points[0];
-      const timeScale = chartApiRef.current?.timeScale();
-      const series = seriesRef.current;
-      
-      if (timeScale && series) {
-          const x = timeScale.timeToCoordinate(p1.time as Time) ?? 0;
-          const y = series.priceToCoordinate(p1.price) ?? 0;
-          
-          // Add offset for UI
-          const rect = chartWrapperRef.current?.getBoundingClientRect();
-          const pageX = (rect?.left ?? 0) + x;
-          const pageY = (rect?.top ?? 0) + y;
-
-          setTextModal({
-              isOpen: true,
-              x: pageX,
-              y: pageY,
-              time: p1.time,
-              price: p1.price,
-              initialText: selectedDrawing.properties.text || '',
-              editDrawingId: selectedDrawing.id
-          });
-      }
   };
 
   return (
@@ -811,37 +841,19 @@ export const FinancialChart: React.FC = () => {
         className="w-full h-full relative group bg-background transition-colors duration-300 chart-wrapper"
     >
       <div ref={chartContainerRef} className="w-full h-full chart-container" />
-      
-      {/* Interaction Layer (Overlay) for Drawing Capture */}
       <div id="drawing-canvas-layer" className="absolute inset-0 w-full h-full z-10 pointer-events-none">
           <canvas ref={overlayCanvasRef} className="w-full h-full" />
       </div>
 
-      {/* --- FLOATING TOOLBARS --- */}
-      {selectedDrawing && (
-          <DrawingToolbar 
-             drawing={selectedDrawing}
-             onUpdate={handleDrawingUpdate}
-             onDelete={handleDrawingDelete}
-             onEdit={handleTextEditStart}
-          />
-      )}
+      {selectedDrawing && <DrawingToolbar drawing={selectedDrawing} onUpdate={handleDrawingUpdate} onDelete={handleDrawingDelete} onEdit={handleTextEditStart} />}
+      <TextToolModal isOpen={textModal.isOpen} initialText={textModal.initialText} onApply={handleTextApply} onClose={() => setTextModal({ ...textModal, isOpen: false })} position={{ x: textModal.x, y: textModal.y }} />
 
-      {/* --- TEXT TOOL MODAL --- */}
-      <TextToolModal 
-          isOpen={textModal.isOpen}
-          initialText={textModal.initialText}
-          onApply={handleTextApply}
-          onClose={() => setTextModal({ ...textModal, isOpen: false })}
-          position={{ x: textModal.x, y: textModal.y }}
-      />
-
-      {/* --- LEGEND --- */}
       {legend && (
         <div className="absolute top-2 left-3 z-20 flex flex-wrap items-center gap-4 text-[11px] select-none pointer-events-none font-sans font-medium tabular-nums">
             <div className="flex items-center gap-2">
                  <span className="font-bold text-base text-text tracking-tight">{state.symbol}</span>
                  <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded font-bold">{state.interval}</span>
+                 {state.replay.isActive && <span className="text-[10px] text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded font-bold animate-pulse">REPLAY</span>}
                  <span className={`text-sm font-bold ${legend.color} ml-1`}>{legend.close}</span>
                  <span className={`${legend.color} text-xs`}>{legend.change} ({legend.changePercent}%)</span>
             </div>
@@ -856,17 +868,8 @@ export const FinancialChart: React.FC = () => {
         </div>
       )}
 
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-50 pointer-events-none">
-          <div className="text-primary font-mono animate-pulse text-xs tracking-widest">INITIALIZING STREAM A...</div>
-        </div>
-      )}
-
-      {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-50 pointer-events-auto">
-          <div className="text-danger font-mono p-4 border border-danger bg-surface rounded text-sm">DATA FAILURE: {error.message}</div>
-        </div>
-      )}
+      {isLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-50 pointer-events-none"><div className="text-primary font-mono animate-pulse text-xs tracking-widest">INITIALIZING STREAM A...</div></div>}
+      {error && <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-50 pointer-events-auto"><div className="text-danger font-mono p-4 border border-danger bg-surface rounded text-sm">DATA FAILURE: {error.message}</div></div>}
     </div>
   );
 };

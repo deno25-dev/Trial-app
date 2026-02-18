@@ -138,7 +138,10 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({ drawing, onUpdat
 
                 {/* Delete */}
                 <button 
-                    onClick={onDelete}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete();
+                    }}
                     className="p-1.5 text-muted hover:text-danger hover:bg-danger/10 rounded transition-colors"
                     title="Delete"
                 >

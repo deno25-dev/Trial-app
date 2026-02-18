@@ -19,6 +19,14 @@ export interface ChartTab {
   interval: Timeframe;
 }
 
+export interface ReplayState {
+  isActive: boolean;    // Is the Replay Toolbar open?
+  isPlaying: boolean;   // Is the animation loop running?
+  speed: number;        // Speed multiplier (e.g., 1000ms per real second, or ticks per frame)
+  isWaitingForCut: boolean; // True when user needs to click the chart to set start point
+  currentTimestamp: number | null;
+}
+
 export interface ChartState {
   symbol: string;
   interval: Timeframe;
@@ -32,6 +40,11 @@ export interface ChartState {
   favorites: Timeframe[]; // Mandate 2.5: User-defined favorites
   tabs: ChartTab[];
   activeTabId: string;
+  replay: ReplayState; // Added Replay State
+  // Price Scale Settings
+  priceScaleMode: 'Linear' | 'Logarithmic' | 'Percentage';
+  isAutoScale: boolean;
+  isInverted: boolean;
 }
 
 export type DrawingToolType = 'cursor' | 'crosshair' | 'trendline' | 'ray' | 'arrow_line' | 'horizontal_line' | 'vertical_line' | 'horizontal_ray' | 'rectangle' | 'triangle' | 'rotated_rectangle' | 'fib_retracement' | 'brush' | 'text' | 'pencil' | 'measure';

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { TopBar } from '../Header/TopBar';
 import { TabStrip } from '../Header/TabStrip';
@@ -12,6 +13,7 @@ import { DataExplorerSidebar } from '../Sidebar/DataExplorerSidebar';
 import { TradePanel } from '../Panels/TradePanel';
 import { StickyNoteManager } from '../Overlays/StickyNoteManager'; // The Renderer
 import { StickyNoteListOverlay } from '../Overlays/StickyNoteListOverlay'; // The Manager UI
+import { ReplayControls } from '../Chart/ReplayControls'; // Replay UI
 import { useChart } from '../../context/ChartContext';
 import clsx from 'clsx';
 
@@ -121,6 +123,9 @@ export const MainLayout: React.FC = () => {
             
             {/* Floating Toolbar (The pill shape) */}
             {state.showFavoritesBar && <FloatingChartToolbar />}
+            
+            {/* Replay Controls (Bottom Center) */}
+            <ReplayControls />
             
             {/* Overlay mask during drag */}
             {isDragging && (

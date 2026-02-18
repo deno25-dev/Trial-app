@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useChart } from '../../context/ChartContext';
 import { ALL_TIMEFRAMES, SKIN_CONFIG } from '../../constants';
@@ -27,7 +28,8 @@ export const TopBar: React.FC = () => {
       setSkin, 
       toggleSearch, 
       isSearchOpen, 
-      toggleFavorite
+      toggleFavorite,
+      toggleReplay // Replay Toggle
   } = useChart();
   
   // Timeframe Dropdown State
@@ -109,7 +111,7 @@ export const TopBar: React.FC = () => {
 
       <Separator />
 
-      {/* 3. History & Replay (Visual Only) */}
+      {/* 3. History & Replay */}
       <button className={getBtnClass(false)}>
         <Undo2 size={18} strokeWidth={2} />
       </button>
@@ -117,7 +119,12 @@ export const TopBar: React.FC = () => {
         <Redo2 size={18} strokeWidth={2} />
       </button>
       
-      <button className={clsx(getBtnClass(false), "ml-1")}>
+      {/* REPLAY MODE BUTTON */}
+      <button 
+        onClick={toggleReplay}
+        className={clsx(getBtnClass(state.replay.isActive), "ml-1")}
+        title="Market Replay Mode"
+      >
          <Rewind size={18} strokeWidth={2} />
       </button>
        <button className={getBtnClass(false)}>

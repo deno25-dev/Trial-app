@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ChartState, DrawingToolType, Timeframe, AppSkin, ChartTab } from '../types';
 import { DEFAULT_SYMBOL, DEFAULT_TIMEFRAME, SKIN_CONFIG, FAVORITE_TIMEFRAMES } from '../constants';
@@ -8,7 +9,7 @@ interface ChartContextType {
   isSearchOpen: boolean;
   isDataExplorerOpen: boolean;
   isTradePanelOpen: boolean;
-  isStickyNoteManagerOpen: boolean; // New State
+  isStickyNoteManagerOpen: boolean; 
   setSymbol: (symbol: string) => void;
   setInterval: (interval: Timeframe) => void;
   setTool: (tool: DrawingToolType) => void;
@@ -22,10 +23,21 @@ interface ChartContextType {
   toggleSearch: () => void;
   toggleDataExplorer: () => void;
   toggleTradePanel: () => void;
-  toggleStickyNoteManager: () => void; // New Toggle
+  toggleStickyNoteManager: () => void;
   addTab: () => void;
   removeTab: (id: string) => void;
   selectTab: (id: string) => void;
+  
+  // Replay Methods
+  toggleReplay: () => void;
+  setReplayPlaying: (isPlaying: boolean) => void;
+  setReplaySpeed: (speed: number) => void;
+  setReplayWaitingForCut: (isWaiting: boolean) => void;
+
+  // Price Scale Methods
+  setPriceScaleMode: (mode: 'Linear' | 'Logarithmic' | 'Percentage') => void;
+  toggleAutoScale: () => void;
+  toggleInvertScale: () => void;
 }
 
 const ChartContext = createContext<ChartContextType | undefined>(undefined);
@@ -43,7 +55,18 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     skin: 'default',
     favorites: [...FAVORITE_TIMEFRAMES],
     tabs: [{ id: '1', symbol: DEFAULT_SYMBOL, interval: DEFAULT_TIMEFRAME }],
-    activeTabId: '1'
+    activeTabId: '1',
+    replay: {
+      isActive: false,
+      isPlaying: false,
+      speed: 1, // 1 tick per frame update cycle (simulated speed)
+      isWaitingForCut: false,
+      currentTimestamp: null
+    },
+    // Default Price Scale Settings
+    priceScaleMode: 'Linear',
+    isAutoScale: true,
+    isInverted: false
   });
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -72,7 +95,6 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         });
 
         // 2. Sync Theme Class (Important for Tailwind Dark Mode utils)
-        // If the skin is light type, remove .dark class. If dark, add it.
         if (skinData.type === 'light') {
             root.classList.remove('dark');
         } else {
@@ -94,21 +116,31 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const setSymbol = (symbol: string) => {
     setState(prev => {
-      // Update the active tab's symbol
       const newTabs = prev.tabs.map(tab => 
         tab.id === prev.activeTabId ? { ...tab, symbol } : tab
       );
-      return { ...prev, symbol, tabs: newTabs };
+      // Reset replay on symbol change
+      return { 
+        ...prev, 
+        symbol, 
+        tabs: newTabs,
+        replay: { ...prev.replay, isActive: false, isPlaying: false, isWaitingForCut: false }
+      };
     });
   };
 
   const setInterval = (interval: Timeframe) => {
     setState(prev => {
-      // Update the active tab's interval
       const newTabs = prev.tabs.map(tab => 
         tab.id === prev.activeTabId ? { ...tab, interval } : tab
       );
-      return { ...prev, interval, tabs: newTabs };
+      // Reset replay on interval change
+      return { 
+        ...prev, 
+        interval, 
+        tabs: newTabs,
+        replay: { ...prev.replay, isActive: false, isPlaying: false, isWaitingForCut: false }
+      };
     });
   };
 
@@ -142,17 +174,13 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const toggleTheme = () => {
     setState(prev => {
       const newTheme = prev.theme === 'dark' ? 'light' : 'dark';
-      
-      // Auto-select a default skin for the target theme
       let newSkin: AppSkin = prev.skin;
       
       if (newTheme === 'light') {
-          // If switching to light, force Polar if currently on a dark skin
           if (SKIN_CONFIG[prev.skin].type === 'dark') {
               newSkin = 'polar';
           }
       } else {
-          // If switching to dark, force Default if currently on a light skin
           if (SKIN_CONFIG[prev.skin].type === 'light') {
               newSkin = 'default';
           }
@@ -160,6 +188,45 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       return { ...prev, theme: newTheme, skin: newSkin };
     });
+  };
+
+  // --- REPLAY ACTIONS ---
+  const toggleReplay = () => {
+    setState(prev => {
+      // If turning ON, set waiting for cut. If turning OFF, reset everything.
+      const isActive = !prev.replay.isActive;
+      return {
+        ...prev,
+        replay: {
+          isActive,
+          isPlaying: false,
+          isWaitingForCut: isActive, // Start by waiting for cut
+          speed: 1,
+          currentTimestamp: null
+        }
+      };
+    });
+  };
+
+  const setReplayPlaying = (isPlaying: boolean) => {
+    setState(prev => ({
+      ...prev,
+      replay: { ...prev.replay, isPlaying }
+    }));
+  };
+
+  const setReplaySpeed = (speed: number) => {
+    setState(prev => ({
+      ...prev,
+      replay: { ...prev.replay, speed }
+    }));
+  };
+
+  const setReplayWaitingForCut = (isWaiting: boolean) => {
+    setState(prev => ({
+      ...prev,
+      replay: { ...prev.replay, isWaitingForCut: isWaiting }
+    }));
   };
 
   // --- TAB MANAGEMENT ---
@@ -215,6 +282,19 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
   };
 
+  // --- PRICE SCALE ACTIONS ---
+  const setPriceScaleMode = (mode: 'Linear' | 'Logarithmic' | 'Percentage') => {
+      setState(prev => ({ ...prev, priceScaleMode: mode }));
+  };
+
+  const toggleAutoScale = () => {
+      setState(prev => ({ ...prev, isAutoScale: !prev.isAutoScale }));
+  };
+
+  const toggleInvertScale = () => {
+      setState(prev => ({ ...prev, isInverted: !prev.isInverted }));
+  };
+
   return (
     <ChartContext.Provider value={{ 
         state, 
@@ -229,7 +309,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toggleMagnet, 
         toggleChartType, 
         toggleGrid, 
-        toggleFavoritesBar,
+        toggleFavoritesBar, 
         toggleFavorite,
         toggleTheme, 
         toggleSearch,
@@ -238,7 +318,14 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toggleStickyNoteManager,
         addTab,
         removeTab,
-        selectTab
+        selectTab,
+        toggleReplay,
+        setReplayPlaying,
+        setReplaySpeed,
+        setReplayWaitingForCut,
+        setPriceScaleMode,
+        toggleAutoScale,
+        toggleInvertScale
     }}>
       {children}
     </ChartContext.Provider>
