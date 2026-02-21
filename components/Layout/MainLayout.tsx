@@ -103,7 +103,7 @@ export const MainLayout: React.FC = () => {
       
       <div className="flex flex-1 overflow-hidden relative">
         {/* 2. Left Toolbar */}
-        <div className="w-14 border-r border-border bg-surface flex flex-col items-center py-4 z-20 shrink-0 overflow-y-auto overflow-x-hidden">
+        <div className="w-14 border-r border-border bg-surface flex flex-col items-center py-4 z-20 shrink-0 overflow-y-auto custom-scrollbar overflow-x-visible">
           <DrawingTools />
         </div>
 

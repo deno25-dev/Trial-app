@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useChart } from '../../context/ChartContext';
 import { 
   Crosshair, 
@@ -30,12 +31,13 @@ interface ToolButtonProps {
   hasArrow?: boolean;
 }
 
-const ToolButton: React.FC<ToolButtonProps> = ({ active, onClick, icon, label, hasArrow }) => (
+const ToolButton = React.forwardRef<HTMLButtonElement, ToolButtonProps>(({ active, onClick, icon, label, hasArrow }, ref) => (
   <button
+    ref={ref}
     onClick={onClick}
     title={label}
     className={clsx(
-      "w-10 h-10 flex items-center justify-center rounded-xl transition-all relative group",
+      "w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl transition-all relative group",
       active 
         ? "text-primary bg-primary/15 shadow-[0_0_20px_rgba(34,211,238,0.45)] border border-white/20" 
         : "text-muted hover:text-text hover:bg-surface-highlight border border-transparent"
@@ -55,10 +57,10 @@ const ToolButton: React.FC<ToolButtonProps> = ({ active, onClick, icon, label, h
         <div className="absolute top-1/2 -left-1 -mt-1 w-2 h-2 bg-surface border-l border-b border-border transform rotate-45" />
     </span>
   </button>
-);
+));
 
 const Separator = () => (
-    <div className="w-6 h-px bg-white/5" />
+    <div className="w-6 h-px bg-white/5 flex-shrink-0" />
 );
 
 export const DrawingTools: React.FC = () => {
@@ -67,10 +69,14 @@ export const DrawingTools: React.FC = () => {
   // State for Line Tools Popup
   const [isLineToolsOpen, setIsLineToolsOpen] = useState(false);
   const lineToolsRef = useRef<HTMLDivElement>(null);
+  const lineButtonRef = useRef<HTMLButtonElement>(null);
+  const [linePos, setLinePos] = useState({ top: 0, left: 0 });
 
   // State for Shapes Popup
   const [isShapesOpen, setIsShapesOpen] = useState(false);
   const shapesRef = useRef<HTMLDivElement>(null);
+  const shapesButtonRef = useRef<HTMLButtonElement>(null);
+  const [shapesPos, setShapesPos] = useState({ top: 0, left: 0 });
 
   // Close popup on click outside
   useEffect(() => {
@@ -93,6 +99,21 @@ export const DrawingTools: React.FC = () => {
     };
   }, [isLineToolsOpen, isShapesOpen]);
 
+  // Update positions when opening
+  useEffect(() => {
+    if (isLineToolsOpen && lineButtonRef.current) {
+        const rect = lineButtonRef.current.getBoundingClientRect();
+        setLinePos({ top: rect.top, left: rect.right + 12 });
+    }
+  }, [isLineToolsOpen]);
+
+  useEffect(() => {
+    if (isShapesOpen && shapesButtonRef.current) {
+        const rect = shapesButtonRef.current.getBoundingClientRect();
+        setShapesPos({ top: rect.top, left: rect.right + 12 });
+    }
+  }, [isShapesOpen]);
+
   // Line Tools Data
   const lineTools = [
     { id: 'trendline', label: 'Trend Line', icon: <Slash size={16} />, favored: true },
@@ -114,8 +135,8 @@ export const DrawingTools: React.FC = () => {
   const isShapeToolActive = ['rectangle', 'triangle', 'rotated_rectangle'].includes(state.activeTool as string);
 
   return (
-    <div className="flex flex-col h-full w-full max-h-screen overflow-hidden">
-      <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col items-center py-2 gap-1.5">
+    <div className="flex flex-col h-full w-full max-h-screen overflow-y-auto custom-scrollbar overflow-x-visible">
+      <div className="flex-1 flex flex-col items-center py-2 gap-1.5 min-h-max">
         {/* 1. Cursor Mode */}
         <ToolButton 
           active={state.activeTool === 'crosshair'} 
@@ -129,8 +150,9 @@ export const DrawingTools: React.FC = () => {
         {/* 2. Drawing Tools Group */}
         
         {/* Line Tools with Popup */}
-        <div className="relative" ref={lineToolsRef}>
+        <div className="relative">
             <ToolButton 
+                ref={lineButtonRef}
                 active={isLineToolActive}
                 onClick={() => setIsLineToolsOpen(!isLineToolsOpen)} 
                 icon={<TrendingUp size={20} strokeWidth={1.5} />} 
@@ -138,8 +160,12 @@ export const DrawingTools: React.FC = () => {
                 hasArrow
             />
 
-            {isLineToolsOpen && (
-               <div className="absolute left-full top-0 ml-3 w-56 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+            {isLineToolsOpen && createPortal(
+               <div 
+                 ref={lineToolsRef}
+                 style={{ top: linePos.top, left: linePos.left }}
+                 className="fixed w-56 bg-surface/80 backdrop-blur-xl border border-white/10 shadow-2xl rounded-lg overflow-hidden z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+               >
                     <div className="px-3 py-2 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
                         Line Tools
                     </div>
@@ -155,7 +181,7 @@ export const DrawingTools: React.FC = () => {
                               }}
                               className={clsx(
                                   "w-full flex items-center justify-between px-3 py-2 text-xs transition-colors group",
-                                  isActive ? "bg-primary/10 text-primary" : "text-text hover:bg-surface-highlight/50"
+                                  isActive ? "bg-primary/10 text-primary" : "text-text hover:bg-white/5"
                               )}
                             >
                                 <div className="flex items-center gap-3">
@@ -180,13 +206,15 @@ export const DrawingTools: React.FC = () => {
                             </button>
                         );
                     })}
-               </div>
+               </div>,
+               document.body
             )}
         </div>
 
         {/* Geometric Shapes with Popup */}
-        <div className="relative" ref={shapesRef}>
+        <div className="relative">
             <ToolButton 
+                ref={shapesButtonRef}
                 active={isShapeToolActive} 
                 onClick={() => setIsShapesOpen(!isShapesOpen)} 
                 icon={<Square size={20} strokeWidth={1.5} />} 
@@ -194,8 +222,12 @@ export const DrawingTools: React.FC = () => {
                 hasArrow
             />
 
-            {isShapesOpen && (
-               <div className="absolute left-full top-0 ml-3 w-56 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+            {isShapesOpen && createPortal(
+               <div 
+                 ref={shapesRef}
+                 style={{ top: shapesPos.top, left: shapesPos.left }}
+                 className="fixed w-56 bg-surface/80 backdrop-blur-xl border border-white/10 shadow-2xl rounded-lg overflow-hidden z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+               >
                     <div className="px-3 py-2 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
                         Geometric Shapes
                     </div>
@@ -211,7 +243,7 @@ export const DrawingTools: React.FC = () => {
                               }}
                               className={clsx(
                                   "w-full flex items-center justify-between px-3 py-2 text-xs transition-colors group",
-                                  isActive ? "bg-primary/10 text-primary" : "text-text hover:bg-surface-highlight/50"
+                                  isActive ? "bg-primary/10 text-primary" : "text-text hover:bg-white/5"
                               )}
                             >
                                 <div className="flex items-center gap-3">
@@ -236,7 +268,8 @@ export const DrawingTools: React.FC = () => {
                             </button>
                         );
                     })}
-               </div>
+               </div>,
+               document.body
             )}
         </div>
 
