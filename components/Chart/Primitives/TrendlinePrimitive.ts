@@ -671,10 +671,11 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
         let bestHit: (PrimitiveHoveredItem & { drawing: Drawing, anchor?: number }) | null = null;
         let minDistance = Infinity;
 
-        // Check both persisted and transient drawings
+        // Check both persisted and transient drawings (Reversed for Top-Most Priority)
         const allDrawings = [...this._drawings, ...this._transientDrawings];
 
-        for (const d of allDrawings) {
+        for (let i = allDrawings.length - 1; i >= 0; i--) {
+            const d = allDrawings[i];
             // Guard against invalid objects
             if (!d.points || d.points.length === 0) continue;
 

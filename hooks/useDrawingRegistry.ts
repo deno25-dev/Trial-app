@@ -2,9 +2,11 @@ import { useState, useCallback, useEffect } from 'react';
 import { Drawing } from '../types';
 import { TauriService } from '../services/tauriService';
 import { Telemetry } from '../utils/telemetry';
+import { useChart } from '../context/ChartContext';
 
 export const useDrawingRegistry = (sourceId: string) => {
   const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const { clearDrawings } = useChart();
 
   // 1. Fetch from Source of Truth (Backend)
   const fetchDrawings = useCallback(async () => {
@@ -56,18 +58,29 @@ export const useDrawingRegistry = (sourceId: string) => {
 
     try {
       await TauriService.deleteDrawing(id);
-      await fetchDrawings();
     } catch (e) {
       Telemetry.error('Persistence', 'Delete failed', { error: e });
       await fetchDrawings();
     }
   }, [fetchDrawings]);
 
+  // 4. Clear All
+  const clearAllDrawings = useCallback(async () => {
+    setDrawings([]);
+    try {
+        await TauriService.clearAllDrawings(sourceId);
+    } catch (e) {
+        Telemetry.error('Persistence', 'Clear all failed', { error: e });
+        await fetchDrawings();
+    }
+  }, [sourceId, fetchDrawings]);
+
   return {
     drawings,
     setDrawings, // Exposed for temporary drag updates (FinancialChart internal state)
     saveDrawing,
     deleteDrawing,
+    clearAllDrawings,
     fetchDrawings
   };
 };

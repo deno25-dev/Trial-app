@@ -34,6 +34,11 @@ interface ChartContextType {
   setReplaySpeed: (speed: number) => void;
   setReplayWaitingForCut: (isWaiting: boolean) => void;
 
+  // Clear Drawings Trigger
+  clearDrawingsTrigger: number;
+  chartRevision: number;
+  clearDrawings: () => void;
+
   // Price Scale Methods
   setPriceScaleMode: (mode: 'Linear' | 'Logarithmic' | 'Percentage') => void;
   toggleAutoScale: () => void;
@@ -73,6 +78,14 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isDataExplorerOpen, setIsDataExplorerOpen] = useState(false);
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
   const [isStickyNoteManagerOpen, setIsStickyNoteManagerOpen] = useState(false);
+
+  // Clear Drawings Logic
+  const [clearDrawingsTrigger, setClearDrawingsTrigger] = useState(0);
+  const [chartRevision, setChartRevision] = useState(0);
+  const clearDrawings = () => {
+    setClearDrawingsTrigger(prev => prev + 1);
+    setChartRevision(prev => prev + 1);
+  };
 
   // Ensure DOM matches initial state
   useEffect(() => {
@@ -323,6 +336,9 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setReplayPlaying,
         setReplaySpeed,
         setReplayWaitingForCut,
+        clearDrawingsTrigger,
+        chartRevision,
+        clearDrawings,
         setPriceScaleMode,
         toggleAutoScale,
         toggleInvertScale

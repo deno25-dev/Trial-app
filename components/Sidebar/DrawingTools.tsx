@@ -62,7 +62,7 @@ const Separator = () => (
 );
 
 export const DrawingTools: React.FC = () => {
-  const { state, setTool, toggleMagnet, toggleGrid, toggleFavoritesBar } = useChart();
+  const { state, setTool, toggleMagnet, toggleGrid, toggleFavoritesBar, clearDrawings } = useChart();
 
   // State for Line Tools Popup
   const [isLineToolsOpen, setIsLineToolsOpen] = useState(false);
@@ -114,7 +114,7 @@ export const DrawingTools: React.FC = () => {
   const isShapeToolActive = ['rectangle', 'triangle', 'rotated_rectangle'].includes(state.activeTool as string);
 
   return (
-    <div className="flex flex-col w-full items-center py-2 gap-1.5">
+    <div className="flex flex-col w-full h-full items-center py-2 gap-1.5">
       {/* 1. Cursor Mode */}
       <ToolButton 
         active={state.activeTool === 'crosshair'} 
@@ -301,7 +301,7 @@ export const DrawingTools: React.FC = () => {
       {/* 5. Delete */}
       <ToolButton 
           active={false}
-          onClick={() => console.log('Delete All')} 
+          onClick={clearDrawings} 
           icon={<Trash2 size={20} strokeWidth={1.5} />} 
           label="Remove Objects" 
       />

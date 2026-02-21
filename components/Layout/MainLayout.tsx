@@ -23,7 +23,7 @@ export const MainLayout: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   
   // Use ChartContext for Data Explorer & Trade Panel State
-  const { isDataExplorerOpen, isTradePanelOpen, state } = useChart();
+  const { isDataExplorerOpen, isTradePanelOpen, state, chartRevision } = useChart();
 
   // Refs for Dragging
   const dragStartY = useRef(0);
@@ -103,7 +103,7 @@ export const MainLayout: React.FC = () => {
       
       <div className="flex flex-1 overflow-hidden relative">
         {/* 2. Left Toolbar */}
-        <div className="w-14 border-r border-border bg-surface flex flex-col items-center py-4 z-20 shrink-0">
+        <div className="w-14 border-r border-border bg-surface flex flex-col items-center py-4 z-20 shrink-0 overflow-y-auto overflow-x-hidden">
           <DrawingTools />
         </div>
 
@@ -119,7 +119,7 @@ export const MainLayout: React.FC = () => {
           
           {/* Chart Area */}
           <div className="flex-1 relative z-0">
-            <FinancialChart />
+            <FinancialChart key={chartRevision} />
             
             {/* Floating Toolbar (The pill shape) */}
             {state.showFavoritesBar && <FloatingChartToolbar />}

@@ -64,3 +64,5 @@ The project adheres to specific architectural and functional mandates:
 - **Performance:** Use `useRef` for high-frequency updates (e.g., 60fps drawing/replay) to avoid unnecessary React re-renders.
 - **Styling:** Use the custom Tailwind theme variables defined in `index.html`.
 - **Telemetry:** Use `Telemetry` utility for logging and performance monitoring.
+
+Detailed project logic and 'Red Pill' philosophy are defined in /docs/SOURCE_OF_TRUTH.md.

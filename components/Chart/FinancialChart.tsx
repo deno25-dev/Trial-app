@@ -74,7 +74,7 @@ export const FinancialChart: React.FC = () => {
 
   // --- PERSISTENCE HOOK (Mandate 1.4 & 0.17) ---
   const sourceId = `${state.symbol}_${state.interval}`;
-  const { drawings, saveDrawing, deleteDrawing, setDrawings: setLocalDrawings } = useDrawingRegistry(sourceId);
+  const { drawings, saveDrawing, deleteDrawing, clearAllDrawings, setDrawings: setLocalDrawings } = useDrawingRegistry(sourceId);
 
   // --- HEADLESS STATE REFS (For 60fps & Event Handlers) ---
   const activeToolRef = useRef(state.activeTool);
@@ -125,6 +125,15 @@ export const FinancialChart: React.FC = () => {
 
   // Selected Drawing State for Toolbar
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
+
+  const { clearDrawingsTrigger } = useChart();
+
+  // Handle Clear All Trigger from Context
+  useEffect(() => {
+    if (clearDrawingsTrigger > 0) {
+      handleClearAll();
+    }
+  }, [clearDrawingsTrigger]);
 
   // --- KEYBOARD SHORTCUTS ---
   useEffect(() => {
@@ -457,7 +466,7 @@ export const FinancialChart: React.FC = () => {
             
             if (hit) {
                 e.preventDefault(); 
-                e.stopPropagation();
+                e.stopImmediatePropagation();
 
                 const drawing = primitive?.drawings.find(d => d.id === hit.drawing.id);
                 if (drawing) {
@@ -654,15 +663,15 @@ export const FinancialChart: React.FC = () => {
     };
 
     const commitDrawing = async (drawing: Drawing) => {
-        const exists = transientDrawingsRef.current.find(d => d.id === drawing.id);
-        if (!exists) transientDrawingsRef.current.push(drawing);
-        else transientDrawingsRef.current = transientDrawingsRef.current.map(d => d.id === drawing.id ? drawing : d);
-        
+        // Remove from transient ref as it's now being persisted
+        transientDrawingsRef.current = transientDrawingsRef.current.filter(d => d.id !== drawing.id);
         trendlinePrimitiveRef.current?.setTransientDrawings([...transientDrawingsRef.current]);
+
         trendlinePrimitiveRef.current?.setActiveInteractionId(null);
         drawingStateRef.current = { phase: 'idle', activeDrawingId: null, dragAnchor: null };
         trendlinePrimitiveRef.current?.updateTempDrawing(null);
         currentDrawingRef.current = null;
+        
         await saveDrawing(drawing);
     };
 
@@ -829,10 +838,56 @@ export const FinancialChart: React.FC = () => {
 
   const handleDrawingDelete = () => {
       if (!selectedDrawingId) return;
+      
+      // Surgical Wipe from Primitive first (Visual)
+      if (trendlinePrimitiveRef.current) {
+          const nextDrawings = trendlinePrimitiveRef.current.drawings.filter(d => d.id !== selectedDrawingId);
+          trendlinePrimitiveRef.current.setDrawings(nextDrawings);
+          trendlinePrimitiveRef.current.setActiveInteractionId(null);
+          trendlinePrimitiveRef.current.updateTempDrawing(null);
+          trendlinePrimitiveRef.current.requestUpdate();
+      }
+
+      // Persistence Delete
       deleteDrawing(selectedDrawingId);
+      setSelectedDrawingId(null);
+  };
+
+  const handleClearAll = () => {
+      // Guard: Prevent loop if already empty
+      if (drawings.length === 0 && transientDrawingsRef.current.length === 0) {
+          return;
+      }
+
+      Telemetry.info('Diagnostic', 'Initiating Clear All', { 
+          stateCount: drawings.length, 
+          primitiveCount: trendlinePrimitiveRef.current?.drawings.length 
+      });
+      
+      clearAllDrawings();
+      
+      // Clear Primitive Internal Data for Zero-Flicker Wipe
+      if (trendlinePrimitiveRef.current) {
+          trendlinePrimitiveRef.current.setDrawings([]);
+          trendlinePrimitiveRef.current.setTransientDrawings([]);
+          trendlinePrimitiveRef.current.requestUpdate();
+      }
+      
+      // Clear Transient Drawings Ref
+      transientDrawingsRef.current = [];
+      
       trendlinePrimitiveRef.current?.setActiveInteractionId(null);
       trendlinePrimitiveRef.current?.updateTempDrawing(null);
       setSelectedDrawingId(null);
+
+      // Post-clear check (Next tick)
+      setTimeout(() => {
+          Telemetry.info('Diagnostic', 'Clear All Complete', { 
+              stateCount: drawings.length, 
+              primitiveCount: trendlinePrimitiveRef.current?.drawings.length,
+              transientCount: transientDrawingsRef.current.length
+          });
+      }, 0);
   };
 
   return (

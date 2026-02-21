@@ -144,6 +144,19 @@ export const TauriService = {
         return true as unknown as T;
     }
 
+    if (command === 'plugin:db|clear_drawings') {
+        const sourceId = args?.sourceId as string;
+        let count = 0;
+        for (let i = MOCK_DRAWINGS.length - 1; i >= 0; i--) {
+            if (MOCK_DRAWINGS[i].sourceId === sourceId) {
+                MOCK_DRAWINGS.splice(i, 1);
+                count++;
+            }
+        }
+        Telemetry.info('Persistence', `Cleared ${count} drawings for ${sourceId}`);
+        return true as unknown as T;
+    }
+
     // Atomic Save Command
     if (command === 'plugin:persistence|save_atomic_json') {
         const { folder, filename, data } = args as { folder: string, filename: string, data: string };
@@ -313,6 +326,10 @@ export const TauriService = {
 
   async deleteDrawing(id: string): Promise<void> {
       return TauriService.invoke('plugin:db|delete_drawing', { id });
+  },
+
+  async clearAllDrawings(sourceId: string): Promise<void> {
+      return TauriService.invoke('plugin:db|clear_drawings', { sourceId });
   },
 
   // --- LANE 4: MARKET STREAM (Binance WebSocket Abstraction) ---
