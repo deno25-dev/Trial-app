@@ -114,197 +114,199 @@ export const DrawingTools: React.FC = () => {
   const isShapeToolActive = ['rectangle', 'triangle', 'rotated_rectangle'].includes(state.activeTool as string);
 
   return (
-    <div className="flex flex-col w-full h-full items-center py-2 gap-1.5">
-      {/* 1. Cursor Mode */}
-      <ToolButton 
-        active={state.activeTool === 'crosshair'} 
-        onClick={() => setTool('crosshair')} 
-        icon={<Crosshair size={20} strokeWidth={1.5} />} 
-        label="Cursor" 
-      />
-      
-      <Separator />
+    <div className="flex flex-col h-full w-full max-h-screen overflow-hidden">
+      <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col items-center py-2 gap-1.5">
+        {/* 1. Cursor Mode */}
+        <ToolButton 
+          active={state.activeTool === 'crosshair'} 
+          onClick={() => setTool('crosshair')} 
+          icon={<Crosshair size={20} strokeWidth={1.5} />} 
+          label="Cursor" 
+        />
+        
+        <Separator />
 
-      {/* 2. Drawing Tools Group */}
-      
-      {/* Line Tools with Popup */}
-      <div className="relative" ref={lineToolsRef}>
-          <ToolButton 
-              active={isLineToolActive}
-              onClick={() => setIsLineToolsOpen(!isLineToolsOpen)} 
-              icon={<TrendingUp size={20} strokeWidth={1.5} />} 
-              label="Line Tools" 
-              hasArrow
-          />
+        {/* 2. Drawing Tools Group */}
+        
+        {/* Line Tools with Popup */}
+        <div className="relative" ref={lineToolsRef}>
+            <ToolButton 
+                active={isLineToolActive}
+                onClick={() => setIsLineToolsOpen(!isLineToolsOpen)} 
+                icon={<TrendingUp size={20} strokeWidth={1.5} />} 
+                label="Line Tools" 
+                hasArrow
+            />
 
-          {isLineToolsOpen && (
-             <div className="absolute left-full top-0 ml-3 w-56 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left">
-                  <div className="px-3 py-2 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
-                      Line Tools
-                  </div>
-                  
-                  {lineTools.map((tool) => {
-                      const isActive = state.activeTool === tool.id;
-                      return (
-                          <button
-                            key={tool.id}
-                            onClick={() => {
-                                setTool(tool.id as any);
-                                setIsLineToolsOpen(false);
-                            }}
-                            className={clsx(
-                                "w-full flex items-center justify-between px-3 py-2 text-xs transition-colors group",
-                                isActive ? "bg-primary/10 text-primary" : "text-text hover:bg-surface-highlight/50"
-                            )}
-                          >
-                              <div className="flex items-center gap-3">
-                                  <span className={isActive ? "text-primary" : "text-muted group-hover:text-text"}>
-                                    {tool.icon}
-                                  </span>
-                                  <span className="font-medium">{tool.label}</span>
-                              </div>
-                              
-                              {/* Star Icon */}
-                              <div 
-                                className={clsx(
-                                    "p-1 rounded hover:bg-surface transition-colors",
-                                    tool.favored ? "text-yellow-500" : "text-muted opacity-0 group-hover:opacity-100"
-                                )}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                }}
-                              >
-                                  <Star size={12} fill={tool.favored ? "currentColor" : "none"} />
-                              </div>
-                          </button>
-                      );
-                  })}
-             </div>
-          )}
+            {isLineToolsOpen && (
+               <div className="absolute left-full top-0 ml-3 w-56 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                    <div className="px-3 py-2 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
+                        Line Tools
+                    </div>
+                    
+                    {lineTools.map((tool) => {
+                        const isActive = state.activeTool === tool.id;
+                        return (
+                            <button
+                              key={tool.id}
+                              onClick={() => {
+                                  setTool(tool.id as any);
+                                  setIsLineToolsOpen(false);
+                              }}
+                              className={clsx(
+                                  "w-full flex items-center justify-between px-3 py-2 text-xs transition-colors group",
+                                  isActive ? "bg-primary/10 text-primary" : "text-text hover:bg-surface-highlight/50"
+                              )}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className={isActive ? "text-primary" : "text-muted group-hover:text-text"}>
+                                      {tool.icon}
+                                    </span>
+                                    <span className="font-medium">{tool.label}</span>
+                                </div>
+                                
+                                {/* Star Icon */}
+                                <div 
+                                  className={clsx(
+                                      "p-1 rounded hover:bg-surface transition-colors",
+                                      tool.favored ? "text-yellow-500" : "text-muted opacity-0 group-hover:opacity-100"
+                                  )}
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                  }}
+                                >
+                                    <Star size={12} fill={tool.favored ? "currentColor" : "none"} />
+                                </div>
+                            </button>
+                        );
+                    })}
+               </div>
+            )}
+        </div>
+
+        {/* Geometric Shapes with Popup */}
+        <div className="relative" ref={shapesRef}>
+            <ToolButton 
+                active={isShapeToolActive} 
+                onClick={() => setIsShapesOpen(!isShapesOpen)} 
+                icon={<Square size={20} strokeWidth={1.5} />} 
+                label="Geometric Shapes" 
+                hasArrow
+            />
+
+            {isShapesOpen && (
+               <div className="absolute left-full top-0 ml-3 w-56 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                    <div className="px-3 py-2 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
+                        Geometric Shapes
+                    </div>
+                    
+                    {shapeTools.map((tool) => {
+                        const isActive = state.activeTool === tool.id;
+                        return (
+                            <button
+                              key={tool.id}
+                              onClick={() => {
+                                  setTool(tool.id as any);
+                                  setIsShapesOpen(false);
+                              }}
+                              className={clsx(
+                                  "w-full flex items-center justify-between px-3 py-2 text-xs transition-colors group",
+                                  isActive ? "bg-primary/10 text-primary" : "text-text hover:bg-surface-highlight/50"
+                              )}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className={isActive ? "text-primary" : "text-muted group-hover:text-text"}>
+                                      {tool.icon}
+                                    </span>
+                                    <span className="font-medium">{tool.label}</span>
+                                </div>
+                                
+                                {/* Star Icon */}
+                                <div 
+                                  className={clsx(
+                                      "p-1 rounded hover:bg-surface transition-colors",
+                                      tool.favored ? "text-yellow-500" : "text-muted opacity-0 group-hover:opacity-100"
+                                  )}
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                  }}
+                                >
+                                    <Star size={12} fill={tool.favored ? "currentColor" : "none"} />
+                                </div>
+                            </button>
+                        );
+                    })}
+               </div>
+            )}
+        </div>
+
+        <ToolButton 
+            active={state.activeTool === 'brush'} 
+            onClick={() => setTool('brush')} 
+            icon={<Brush size={20} strokeWidth={1.5} />} 
+            label="Brush" 
+        />
+        <ToolButton 
+            active={state.activeTool === 'text'} 
+            onClick={() => setTool('text')} 
+            icon={<Type size={20} strokeWidth={1.5} />} 
+            label="Text" 
+        />
+
+        <Separator />
+
+        {/* 3. Advanced/Measurement Group */}
+        <ToolButton 
+            active={state.isMagnetMode} 
+            onClick={toggleMagnet} 
+            icon={<Magnet size={20} strokeWidth={1.5} className={state.isMagnetMode ? "fill-current" : ""} />} 
+            label="Magnet Mode" 
+        />
+        <ToolButton 
+            active={state.activeTool === 'pencil'} 
+            onClick={() => setTool('pencil')} 
+            icon={<Pencil size={20} strokeWidth={1.5} />} 
+            label="Continuous Drawing" 
+        />
+        <ToolButton 
+            active={state.activeTool === 'measure'} 
+            onClick={() => setTool('measure')} 
+            icon={<Ruler size={20} strokeWidth={1.5} />} 
+            label="Measure" 
+        />
+
+        <Separator />
+
+        {/* 4. Utility Group */}
+        <ToolButton 
+            active={false}
+            onClick={() => {}} 
+            icon={<Lock size={20} strokeWidth={1.5} />} 
+            label="Lock All Drawings" 
+        />
+        <ToolButton 
+            active={state.showFavoritesBar} 
+            onClick={toggleFavoritesBar} 
+            icon={<Star size={20} className={state.showFavoritesBar ? "fill-current text-yellow-500" : ""} strokeWidth={1.5} />} 
+            label="Favorites Bar" 
+        />
+        <ToolButton 
+            active={!state.showGrid}
+            onClick={toggleGrid} 
+            icon={<Eye size={20} strokeWidth={1.5} />} 
+            label="Hide All Drawings" 
+        />
+
+        <Separator />
+
+        {/* 5. Delete */}
+        <ToolButton 
+            active={false}
+            onClick={clearDrawings} 
+            icon={<Trash2 size={20} strokeWidth={1.5} />} 
+            label="Remove Objects" 
+        />
       </div>
-
-      {/* Geometric Shapes with Popup */}
-      <div className="relative" ref={shapesRef}>
-          <ToolButton 
-              active={isShapeToolActive} 
-              onClick={() => setIsShapesOpen(!isShapesOpen)} 
-              icon={<Square size={20} strokeWidth={1.5} />} 
-              label="Geometric Shapes" 
-              hasArrow
-          />
-
-          {isShapesOpen && (
-             <div className="absolute left-full top-0 ml-3 w-56 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left">
-                  <div className="px-3 py-2 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
-                      Geometric Shapes
-                  </div>
-                  
-                  {shapeTools.map((tool) => {
-                      const isActive = state.activeTool === tool.id;
-                      return (
-                          <button
-                            key={tool.id}
-                            onClick={() => {
-                                setTool(tool.id as any);
-                                setIsShapesOpen(false);
-                            }}
-                            className={clsx(
-                                "w-full flex items-center justify-between px-3 py-2 text-xs transition-colors group",
-                                isActive ? "bg-primary/10 text-primary" : "text-text hover:bg-surface-highlight/50"
-                            )}
-                          >
-                              <div className="flex items-center gap-3">
-                                  <span className={isActive ? "text-primary" : "text-muted group-hover:text-text"}>
-                                    {tool.icon}
-                                  </span>
-                                  <span className="font-medium">{tool.label}</span>
-                              </div>
-                              
-                              {/* Star Icon */}
-                              <div 
-                                className={clsx(
-                                    "p-1 rounded hover:bg-surface transition-colors",
-                                    tool.favored ? "text-yellow-500" : "text-muted opacity-0 group-hover:opacity-100"
-                                )}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                }}
-                              >
-                                  <Star size={12} fill={tool.favored ? "currentColor" : "none"} />
-                              </div>
-                          </button>
-                      );
-                  })}
-             </div>
-          )}
-      </div>
-
-      <ToolButton 
-          active={state.activeTool === 'brush'} 
-          onClick={() => setTool('brush')} 
-          icon={<Brush size={20} strokeWidth={1.5} />} 
-          label="Brush" 
-      />
-      <ToolButton 
-          active={state.activeTool === 'text'} 
-          onClick={() => setTool('text')} 
-          icon={<Type size={20} strokeWidth={1.5} />} 
-          label="Text" 
-      />
-
-      <Separator />
-
-      {/* 3. Advanced/Measurement Group */}
-      <ToolButton 
-          active={state.isMagnetMode} 
-          onClick={toggleMagnet} 
-          icon={<Magnet size={20} strokeWidth={1.5} className={state.isMagnetMode ? "fill-current" : ""} />} 
-          label="Magnet Mode" 
-      />
-      <ToolButton 
-          active={state.activeTool === 'pencil'} 
-          onClick={() => setTool('pencil')} 
-          icon={<Pencil size={20} strokeWidth={1.5} />} 
-          label="Continuous Drawing" 
-      />
-      <ToolButton 
-          active={state.activeTool === 'measure'} 
-          onClick={() => setTool('measure')} 
-          icon={<Ruler size={20} strokeWidth={1.5} />} 
-          label="Measure" 
-      />
-
-      <Separator />
-
-      {/* 4. Utility Group */}
-      <ToolButton 
-          active={false}
-          onClick={() => {}} 
-          icon={<Lock size={20} strokeWidth={1.5} />} 
-          label="Lock All Drawings" 
-      />
-      <ToolButton 
-          active={state.showFavoritesBar} 
-          onClick={toggleFavoritesBar} 
-          icon={<Star size={20} className={state.showFavoritesBar ? "fill-current text-yellow-500" : ""} strokeWidth={1.5} />} 
-          label="Favorites Bar" 
-      />
-      <ToolButton 
-          active={!state.showGrid}
-          onClick={toggleGrid} 
-          icon={<Eye size={20} strokeWidth={1.5} />} 
-          label="Hide All Drawings" 
-      />
-
-      <Separator />
-
-      {/* 5. Delete */}
-      <ToolButton 
-          active={false}
-          onClick={clearDrawings} 
-          icon={<Trash2 size={20} strokeWidth={1.5} />} 
-          label="Remove Objects" 
-      />
     </div>
   );
 };

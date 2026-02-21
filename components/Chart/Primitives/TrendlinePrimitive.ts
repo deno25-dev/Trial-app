@@ -641,6 +641,14 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
         this.requestUpdate();
     }
     
+    public removeDrawing(id: string) {
+        this._drawings = this._drawings.filter(d => d.id !== id);
+        this._transientDrawings = this._transientDrawings.filter(d => d.id !== id);
+        this._textBoundsCache.delete(id);
+        this._dirty = true;
+        this.requestUpdate();
+    }
+    
     public updateTempDrawing(drawing: Drawing | null) {
         this._tempDrawing = drawing;
         this._dirty = true;

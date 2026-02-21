@@ -38,16 +38,12 @@ export const useDrawingRegistry = (sourceId: string) => {
       return [...prev, drawing];
     });
 
-    // B. Persist & C. Hydrate Loop
+    // B. Persist
     try {
       await TauriService.saveDrawing(drawing);
-      // Mandate: Force Registry Refresh to sync with SQLite "Source of Truth"
-      await fetchDrawings();
       Telemetry.success('Persistence', 'Drawing Synced', { id: drawing.id });
     } catch (e) {
-      Telemetry.error('Persistence', 'Save failed, rolling back', { error: e });
-      // On fail, revert to last known good state from DB
-      await fetchDrawings();
+      Telemetry.error('Persistence', 'Save failed', { error: e });
     }
   }, [fetchDrawings]);
 
@@ -60,7 +56,6 @@ export const useDrawingRegistry = (sourceId: string) => {
       await TauriService.deleteDrawing(id);
     } catch (e) {
       Telemetry.error('Persistence', 'Delete failed', { error: e });
-      await fetchDrawings();
     }
   }, [fetchDrawings]);
 

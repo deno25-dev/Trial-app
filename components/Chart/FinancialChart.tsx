@@ -841,11 +841,9 @@ export const FinancialChart: React.FC = () => {
       
       // Surgical Wipe from Primitive first (Visual)
       if (trendlinePrimitiveRef.current) {
-          const nextDrawings = trendlinePrimitiveRef.current.drawings.filter(d => d.id !== selectedDrawingId);
-          trendlinePrimitiveRef.current.setDrawings(nextDrawings);
+          trendlinePrimitiveRef.current.removeDrawing(selectedDrawingId);
           trendlinePrimitiveRef.current.setActiveInteractionId(null);
           trendlinePrimitiveRef.current.updateTempDrawing(null);
-          trendlinePrimitiveRef.current.requestUpdate();
       }
 
       // Persistence Delete
