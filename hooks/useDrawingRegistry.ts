@@ -61,12 +61,12 @@ export const useDrawingRegistry = (sourceId: string) => {
 
   // 4. Clear All
   const clearAllDrawings = useCallback(async () => {
-    setDrawings([]);
+    setDrawings([]); // Optimistic clear
     try {
         await TauriService.clearAllDrawings(sourceId);
     } catch (e) {
         Telemetry.error('Persistence', 'Clear all failed', { error: e });
-        await fetchDrawings();
+        await fetchDrawings(); // Revert on failure
     }
   }, [sourceId, fetchDrawings]);
 

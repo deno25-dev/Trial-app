@@ -642,6 +642,7 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     }
     
     public removeDrawing(id: string) {
+        console.log(`[Primitive] removeDrawing: ${id}`);
         this._drawings = this._drawings.filter(d => d.id !== id);
         this._transientDrawings = this._transientDrawings.filter(d => d.id !== id);
         this._textBoundsCache.delete(id);
@@ -674,7 +675,7 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     hitTest(x: number, y: number): (PrimitiveHoveredItem & { drawing: Drawing, anchor?: number }) | null {
         if (!this._chart || !this._series || this._data.length === 0) return null;
         
-        const threshold = 8; 
+        const threshold = 6; // Strict threshold for better precision
         
         let bestHit: (PrimitiveHoveredItem & { drawing: Drawing, anchor?: number }) | null = null;
         let minDistance = Infinity;
@@ -684,7 +685,6 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
 
         for (let i = allDrawings.length - 1; i >= 0; i--) {
             const d = allDrawings[i];
-            // Guard against invalid objects
             if (!d.points || d.points.length === 0) continue;
 
             let currentDist = Infinity;
@@ -696,12 +696,11 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
                 if (bounds) {
                     if (x >= bounds.x - 5 && x <= bounds.x + bounds.w + 5 &&
                         y >= bounds.y - 5 && y <= bounds.y + bounds.h + 5) {
-                        currentDist = 0; // High priority (Direct Hit)
+                        currentDist = 0;
                         currentHit = { zOrder: 'top', externalId: d.id, drawing: d, anchor: 0 };
                     }
                 }
             } 
-            
             // 2. Resolve Coordinates for Lines/Shapes
             else {
                 const coords = d.points.map(p => ({
@@ -709,40 +708,29 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
                     y: this._series!.priceToCoordinate(p.price)
                 }));
 
-                // Skip if any coordinate is unresolved (off-screen logic handled by resolveX usually returns valid or null)
                 if (coords.some(c => c.x === null || c.y === null)) continue;
                 const validCoords = coords as {x:number, y:number}[];
 
-                // 2a. Anchor Hit Test (Highest Priority)
-                for(let i=0; i<validCoords.length; i++) {
-                    const c = validCoords[i];
+                // 2a. Anchor Hit Test
+                for(let j=0; j<validCoords.length; j++) {
+                    const c = validCoords[j];
                     const dist = Math.hypot(x - c.x, y - c.y);
-                    if (dist <= threshold) {
-                         // Prefer anchors over body if distance is similar
+                    if (dist <= threshold + 2) {
                          if (dist < minDistance) {
                              currentDist = dist;
-                             currentHit = { zOrder: 'top', externalId: d.id, drawing: d, anchor: i };
+                             currentHit = { zOrder: 'top', externalId: d.id, drawing: d, anchor: j };
                          }
                     }
                 }
 
-                // If anchor hit found and it's very close, it usually wins, but let's check body too just in case
-                if (currentHit && currentDist < 1) { 
-                    // optimization: very close to anchor
-                } else {
+                if (!currentHit) {
                     // 2b. Body Hit Test
-                    
-                    // Brush
                     if (d.type === 'brush') {
-                        for (let i = 0; i < validCoords.length - 1; i++) {
-                             const dist = this._distanceToSegment(x, y, validCoords[i].x, validCoords[i].y, validCoords[i+1].x, validCoords[i+1].y);
-                             if (dist < currentDist) {
-                                 currentDist = dist;
-                                 currentHit = { zOrder: 'top', externalId: d.id, drawing: d };
-                             }
+                        for (let j = 0; j < validCoords.length - 1; j++) {
+                             const dist = this._distanceToSegment(x, y, validCoords[j].x, validCoords[j].y, validCoords[j+1].x, validCoords[j+1].y);
+                             if (dist < currentDist) { currentDist = dist; currentHit = { zOrder: 'top', externalId: d.id, drawing: d }; }
                         }
                     }
-                    // Infinite Lines
                     else if (d.type === 'horizontal_line') {
                         const dist = Math.abs(validCoords[0].y - y);
                         if (dist < currentDist) { currentDist = dist; currentHit = { zOrder: 'top', externalId: d.id, drawing: d, anchor: 0 }; }
@@ -757,10 +745,8 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
                              if (dist < currentDist) { currentDist = dist; currentHit = { zOrder: 'top', externalId: d.id, drawing: d, anchor: 0 }; }
                         }
                     }
-                    // Shapes (Polygon Fill Check)
                     else if (['rectangle', 'triangle', 'rotated_rectangle'].includes(d.type)) {
                         let polygon: {x:number, y:number}[] = [];
-                        
                         if (d.type === 'rectangle' && validCoords.length >= 2) {
                              const [c1, c2] = validCoords;
                              polygon = [{x: c1.x, y: c1.y}, {x: c2.x, y: c1.y}, {x: c2.x, y: c2.y}, {x: c1.x, y: c2.y}];
@@ -780,34 +766,22 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
                                 polygon = [p1, p2, p5, p4];
                              }
                         }
-
                         if (polygon.length > 2 && isPointInPolygon({x,y}, polygon)) {
-                            // Being inside a shape is a hit, but usually edges/anchors have priority if overlapping
-                            // Give it a slightly higher distance than 0 so lines on top win?
-                            // Or just 0. Let's say 0.
-                            if (currentDist > 0) {
-                                currentDist = 0;
-                                currentHit = { zOrder: 'top', externalId: d.id, drawing: d };
-                            }
+                            if (currentDist > 2) { currentDist = 2; currentHit = { zOrder: 'top', externalId: d.id, drawing: d }; }
                         }
                     }
-                    // Trendline / Ray / Arrow
                     else if (validCoords.length >= 2) {
-                        const p1 = validCoords[0];
-                        const p2 = validCoords[1];
-                        const dist = this._distanceToSegment(x, y, p1.x, p1.y, p2.x, p2.y);
-                        if (dist < currentDist) {
-                            currentDist = dist;
-                            currentHit = { zOrder: 'top', externalId: d.id, drawing: d };
-                        }
+                        const dist = this._distanceToSegment(x, y, validCoords[0].x, validCoords[0].y, validCoords[1].x, validCoords[1].y);
+                        if (dist < currentDist) { currentDist = dist; currentHit = { zOrder: 'top', externalId: d.id, drawing: d }; }
                     }
                 }
             }
 
-            // Update Best Hit if this drawing is closer
             if (currentHit && currentDist < minDistance && currentDist <= threshold) {
                 minDistance = currentDist;
                 bestHit = currentHit;
+                // If we found an exact/very close hit on top-most object, we can stop
+                if (currentDist < 2) break;
             }
         }
         

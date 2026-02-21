@@ -146,13 +146,12 @@ export const TauriService = {
 
     if (command === 'plugin:db|clear_drawings') {
         const sourceId = args?.sourceId as string;
-        let count = 0;
-        for (let i = MOCK_DRAWINGS.length - 1; i >= 0; i--) {
-            if (MOCK_DRAWINGS[i].sourceId === sourceId) {
-                MOCK_DRAWINGS.splice(i, 1);
-                count++;
-            }
-        }
+        const initialLen = MOCK_DRAWINGS.length;
+        // Bulk delete via filtering
+        const filtered = MOCK_DRAWINGS.filter(d => d.sourceId !== sourceId);
+        MOCK_DRAWINGS.length = 0;
+        MOCK_DRAWINGS.push(...filtered);
+        const count = initialLen - MOCK_DRAWINGS.length;
         Telemetry.info('Persistence', `Cleared ${count} drawings for ${sourceId}`);
         return true as unknown as T;
     }

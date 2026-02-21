@@ -852,40 +852,10 @@ export const FinancialChart: React.FC = () => {
   };
 
   const handleClearAll = () => {
-      // Guard: Prevent loop if already empty
-      if (drawings.length === 0 && transientDrawingsRef.current.length === 0) {
-          return;
-      }
-
-      Telemetry.info('Diagnostic', 'Initiating Clear All', { 
-          stateCount: drawings.length, 
-          primitiveCount: trendlinePrimitiveRef.current?.drawings.length 
-      });
-      
       clearAllDrawings();
-      
-      // Clear Primitive Internal Data for Zero-Flicker Wipe
-      if (trendlinePrimitiveRef.current) {
-          trendlinePrimitiveRef.current.setDrawings([]);
-          trendlinePrimitiveRef.current.setTransientDrawings([]);
-          trendlinePrimitiveRef.current.requestUpdate();
-      }
-      
-      // Clear Transient Drawings Ref
-      transientDrawingsRef.current = [];
-      
-      trendlinePrimitiveRef.current?.setActiveInteractionId(null);
-      trendlinePrimitiveRef.current?.updateTempDrawing(null);
+      trendlinePrimitiveRef.current?.setDrawings([]);
+      trendlinePrimitiveRef.current?.requestUpdate(); // Force visual wipe
       setSelectedDrawingId(null);
-
-      // Post-clear check (Next tick)
-      setTimeout(() => {
-          Telemetry.info('Diagnostic', 'Clear All Complete', { 
-              stateCount: drawings.length, 
-              primitiveCount: trendlinePrimitiveRef.current?.drawings.length,
-              transientCount: transientDrawingsRef.current.length
-          });
-      }, 0);
   };
 
   return (
