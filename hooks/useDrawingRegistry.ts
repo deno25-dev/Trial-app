@@ -8,10 +8,11 @@ export const useDrawingRegistry = (sourceId: string) => {
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const { clearDrawings } = useChart();
 
-  // --- HISTORY SYSTEM (COMMAND PATTERN) ---
+  // FIX: Atomic Selection State - prevents fetchDrawings from overwriting selection
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const isInternalUpdateRef = useRef(false);
   const [past, setPast] = useState<DrawingCommand[]>([]);
   const [future, setFuture] = useState<DrawingCommand[]>([]);
-  const isInternalUpdateRef = useRef(false);
 
   const pushCommand = useCallback((command: DrawingCommand) => {
     setPast(prev => [...prev, command]);
@@ -53,6 +54,14 @@ export const useDrawingRegistry = (sourceId: string) => {
   // 1. Fetch from Source of Truth (Backend)
   const fetchDrawings = useCallback(async () => {
     if (!sourceId) return;
+    
+    // FIX: Skip if there's an active selection - don't overwrite selection state
+    // This prevents the "Selection Fail" where fetchDrawings or Drawing Synced overwrites the selected ID
+    if (selectedId !== null) {
+        Telemetry.debug('Persistence', 'Skipping fetch - selection active', { selectedId });
+        return;
+    }
+    
     try {
       // MANDATE 0.17.2: Import & Destroy Logic (Fixing Zombies)
       // Check for legacy JSON in Database/Drawings/
@@ -83,7 +92,7 @@ export const useDrawingRegistry = (sourceId: string) => {
     } catch (e) {
       Telemetry.error('Persistence', 'Failed to hydrate drawings', { error: e });
     }
-  }, [sourceId]);
+  }, [sourceId, selectedId]); // Added selectedId dependency
 
   // Initial Load when sourceId changes
   useEffect(() => {
@@ -187,6 +196,8 @@ export const useDrawingRegistry = (sourceId: string) => {
 
   return {
     drawings,
+    selectedId, // Expose selected ID for external read
+    setSelectedId, // Expose atomic setter for selection
     setDrawings, // Exposed for temporary drag updates (FinancialChart internal state)
     saveDrawing,
     deleteDrawing,

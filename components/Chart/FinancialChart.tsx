@@ -405,6 +405,16 @@ export const FinancialChart: React.FC = () => {
         if (candle) updateLegend(candle, volume?.value);
     });
 
+    // FIX: Stop Propagation - Check for hovered primitive and prevent chart from clearing selection
+    // Note: lightweight-charts doesn't pass native event, so we handle this in the mousedown handler instead
+    // by checking hitTest results. This handler is here for future use if needed.
+    chart.subscribeClick((param) => {
+        // Log for debugging - in lightweight-charts, param.hoveredSeries or similar may be available
+        if (param.point) {
+            console.log('[CLICK_DEBUG] Click at point:', param.point);
+        }
+    });
+
     // Handle Resize
     const resizeObserver = new ResizeObserver((entries) => {
       if (!chartContainerRef.current || !chartApiRef.current) return;

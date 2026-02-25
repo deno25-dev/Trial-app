@@ -133,6 +133,11 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
                 if (d.points.length < 2) return;
             }
 
+            // FIX: Visual Highlight Guard - Check if this drawing is selected via either:
+            // 1. The d.selected property (set by FinancialChart)
+            // 2. The _selectedId on the primitive (set via setSelectedId)
+            const isSelected = d.selected || d.id === this._source._selectedId;
+
             switch(d.type) {
                 case 'text': this._drawText(ctx, d, isTemp, timeScale, series); break;
                 case 'brush': this._drawBrush(ctx, d, isTemp, timeScale, series); break;
@@ -192,9 +197,11 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        if (d.selected || isTemp) {
+        // FIX: Check both d.selected and _selectedId for visual highlight
+        const isSelected = d.selected || d.id === this._source._selectedId;
+        if (isSelected || isTemp) {
              const x = this._resolveX(p.time, timeScale);
-             if (x !== null) this._drawAnchor(ctx, x, y, d.selected);
+             if (x !== null) this._drawAnchor(ctx, x, y, isSelected);
         }
     }
 
@@ -218,8 +225,10 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        if (d.selected || isTemp) {
-             this._drawAnchor(ctx, x, y, d.selected);
+        // FIX: Check both d.selected and _selectedId for visual highlight
+        const isSelected = d.selected || d.id === this._source._selectedId;
+        if (isSelected || isTemp) {
+             this._drawAnchor(ctx, x, y, isSelected);
         }
     }
 
@@ -241,9 +250,11 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        if (d.selected || isTemp) {
+        // FIX: Check both d.selected and _selectedId for visual highlight
+        const isSelected = d.selected || d.id === this._source._selectedId;
+        if (isSelected || isTemp) {
              const y = series.priceToCoordinate(p.price);
-             if (y !== null) this._drawAnchor(ctx, x, y, d.selected);
+             if (y !== null) this._drawAnchor(ctx, x, y, isSelected);
         }
     }
 
@@ -285,9 +296,11 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         ctx.closePath();
         ctx.fill();
 
-        if (d.selected || d.hovered || isTemp) {
-            this._drawAnchor(ctx, x1, y1, d.selected);
-            this._drawAnchor(ctx, x2, y2, d.selected);
+        // FIX: Check both d.selected and _selectedId for visual highlight
+        const isSelected = d.selected || d.id === this._source._selectedId;
+        if (isSelected || d.hovered || isTemp) {
+            this._drawAnchor(ctx, x1, y1, isSelected);
+            this._drawAnchor(ctx, x2, y2, isSelected);
         }
     }
 
@@ -316,11 +329,13 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        if (d.selected || isTemp) {
-            this._drawAnchor(ctx, c1!.x, c1!.y, d.selected);
-            this._drawAnchor(ctx, c2!.x, c2!.y, d.selected);
-            this._drawAnchor(ctx, c1!.x, c2!.y, d.selected);
-            this._drawAnchor(ctx, c2!.x, c1!.y, d.selected);
+        // FIX: Check both d.selected and _selectedId for visual highlight
+        const isSelected = d.selected || d.id === this._source._selectedId;
+        if (isSelected || isTemp) {
+            this._drawAnchor(ctx, c1!.x, c1!.y, isSelected);
+            this._drawAnchor(ctx, c2!.x, c2!.y, isSelected);
+            this._drawAnchor(ctx, c1!.x, c2!.y, isSelected);
+            this._drawAnchor(ctx, c2!.x, c1!.y, isSelected);
         }
     }
 
@@ -344,8 +359,10 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        if (d.selected || isTemp) {
-            coords.forEach(c => this._drawAnchor(ctx, c!.x, c!.y, d.selected));
+        // FIX: Check both d.selected and _selectedId for visual highlight
+        const isSelected = d.selected || d.id === this._source._selectedId;
+        if (isSelected || isTemp) {
+            coords.forEach(c => this._drawAnchor(ctx, c!.x, c!.y, isSelected));
         }
     }
 
@@ -386,10 +403,12 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        if (d.selected || isTemp) {
-            this._drawAnchor(ctx, p1.x, p1.y, d.selected);
-            this._drawAnchor(ctx, p2.x, p2.y, d.selected);
-            this._drawAnchor(ctx, p3.x, p3.y, d.selected);
+        // FIX: Check both d.selected and _selectedId for visual highlight
+        const isSelected = d.selected || d.id === this._source._selectedId;
+        if (isSelected || isTemp) {
+            this._drawAnchor(ctx, p1.x, p1.y, isSelected);
+            this._drawAnchor(ctx, p2.x, p2.y, isSelected);
+            this._drawAnchor(ctx, p3.x, p3.y, isSelected);
         }
     }
 
@@ -415,7 +434,9 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
             this._source._textBoundsCache.set(d.id, { x, y: y - h, w, h });
         }
 
-        if (d.selected || isTemp) {
+        // FIX: Check both d.selected and _selectedId for visual highlight
+        const isSelected = d.selected || d.id === this._source._selectedId;
+        if (isSelected || isTemp) {
             target.save();
             target.shadowColor = "#3b82f6";
             target.shadowBlur = 15;
@@ -438,7 +459,9 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         target.fillStyle = color;
         target.fillText(text, x, y);
 
-        if (d.selected || isTemp) {
+        // FIX: Check both d.selected and _selectedId for visual highlight
+        const isSelectedText = d.selected || d.id === this._source._selectedId;
+        if (isSelectedText || isTemp) {
             this._drawAnchor(target, x, y, true);
         }
     }
@@ -472,7 +495,9 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
             target.stroke();
         }
 
-        if (d.selected && !isTemp) {
+        // FIX: Check both d.selected and _selectedId for visual highlight
+        const isSelectedBrush = d.selected || d.id === this._source._selectedId;
+        if (isSelectedBrush && !isTemp) {
             target.save();
             target.globalAlpha = 0.2;
             target.lineWidth = d.properties.lineWidth + 4;
@@ -523,9 +548,11 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         target.stroke();
         target.setLineDash([]); 
 
-        if (d.selected || d.hovered || isTemp) {
-            this._drawAnchor(target, x1, y1, d.selected);
-            this._drawAnchor(target, x2, y2, d.selected);
+        // FIX: Check both d.selected and _selectedId for visual highlight
+        const isSelectedDraw = d.selected || d.id === this._source._selectedId;
+        if (isSelectedDraw || d.hovered || isTemp) {
+            this._drawAnchor(target, x1, y1, isSelectedDraw);
+            this._drawAnchor(target, x2, y2, isSelectedDraw);
         }
     }
 
@@ -813,8 +840,8 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
                 console.log(`[HIT_TEST] Match Found: ${d.id} type=${d.type} dist=${currentDist.toFixed(2)}`);
                 minDistance = currentDist;
                 bestHit = currentHit;
-                // If we found an exact/very close hit on top-most object, we can stop
-                if (currentDist < 2) break;
+                // FIX: Do NOT break early - we must find the drawing with the SMALLEST distance
+                // across ALL drawings, not just the first close one found
             }
         }
         
