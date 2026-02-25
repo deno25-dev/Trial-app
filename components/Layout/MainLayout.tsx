@@ -15,6 +15,8 @@ import { StickyNoteManager } from '../Overlays/StickyNoteManager'; // The Render
 import { StickyNoteListOverlay } from '../Overlays/StickyNoteListOverlay'; // The Manager UI
 import { ReplayControls } from '../Chart/ReplayControls'; // Replay UI
 import { useChart } from '../../context/ChartContext';
+import { TauriService } from '../../services/tauriService';
+import { Telemetry } from '../../utils/telemetry';
 import clsx from 'clsx';
 
 export const MainLayout: React.FC = () => {

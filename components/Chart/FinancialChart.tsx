@@ -539,6 +539,9 @@ export const FinancialChart: React.FC = () => {
                 seriesRef.current.setData(candles);
                 volumeSeriesRef.current.setData(volumes);
                 
+                // MANDATE: Update primitive data for hit-testing in replay mode
+                trendlinePrimitiveRef.current?.setData(sliced);
+                
                 // Drop Visual Marker (Vertical Line)
                 const marker: Drawing = {
                     id: crypto.randomUUID(),
@@ -876,6 +879,11 @@ export const FinancialChart: React.FC = () => {
                      seriesRef.current.update({ time: d.time as any, open: d.open, high: d.high, low: d.low, close: d.close });
                      const isUp = d.close >= d.open;
                      volumeSeriesRef.current.update({ time: d.time as any, value: d.volume, color: (isUp ? currentTheme.candleUp : currentTheme.candleDown) + '80' });
+                     
+                     // Periodic update to primitive data for hit-testing accuracy
+                     if (nextIndex % 10 === 0) {
+                         trendlinePrimitiveRef.current?.setData(fullDataRef.current.slice(0, nextIndex + 1));
+                     }
                  }
              } else {
                  // End of data
