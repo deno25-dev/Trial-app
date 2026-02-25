@@ -1,8 +1,10 @@
 
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createChart, IChartApi, ISeriesApi, CandlestickData, HistogramData, MouseEventParams, Time, CandlestickSeries, HistogramSeries, ColorType, CrosshairMode, PriceScaleMode } from 'lightweight-charts';
 import { useQuery } from '@tanstack/react-query';
+import { Undo2, Redo2 } from 'lucide-react';
+import clsx from 'clsx';
 import { useChart } from '../../context/ChartContext';
 import { TauriService } from '../../services/tauriService';
 import { SKIN_CONFIG, LIGHT_THEME_CHART } from '../../constants';
@@ -64,7 +66,18 @@ export const FinancialChart: React.FC = () => {
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const trendlinePrimitiveRef = useRef<TrendlinePrimitive | null>(null);
   
-  const { state, setTool, setReplayWaitingForCut, toggleInvertScale } = useChart();
+  const { 
+    state, 
+    setTool, 
+    setReplayWaitingForCut, 
+    toggleInvertScale,
+    undoTrigger,
+    redoTrigger,
+    canUndo: globalCanUndo, // Not used but available
+    canRedo: globalCanRedo, // Not used but available
+    setCanUndoRedo,
+    clearDrawingsTrigger
+  } = useChart();
 
   // --- REPLAY SYSTEM REFS ---
   const fullDataRef = useRef<OhlcData[]>([]); // Stores the Source of Truth dataset
@@ -74,7 +87,31 @@ export const FinancialChart: React.FC = () => {
 
   // --- PERSISTENCE HOOK (Mandate 1.4 & 0.17) ---
   const sourceId = `${state.symbol}_${state.interval}`;
-  const { drawings, saveDrawing, deleteDrawing, clearAllDrawings, setDrawings: setLocalDrawings } = useDrawingRegistry(sourceId);
+  const { 
+    drawings, 
+    saveDrawing, 
+    deleteDrawing, 
+    clearAllDrawings, 
+    setDrawings: setLocalDrawings,
+    undo,
+    redo,
+    canUndo,
+    canRedo
+  } = useDrawingRegistry(sourceId);
+
+  // Sync canUndo/canRedo to Context
+  useEffect(() => {
+    setCanUndoRedo(canUndo, canRedo);
+  }, [canUndo, canRedo, setCanUndoRedo]);
+
+  // Handle Undo/Redo Triggers from Context
+  useEffect(() => {
+    if (undoTrigger > 0) handleUndo();
+  }, [undoTrigger]);
+
+  useEffect(() => {
+    if (redoTrigger > 0) handleRedo();
+  }, [redoTrigger]);
 
   // --- HEADLESS STATE REFS (For 60fps & Event Handlers) ---
   const activeToolRef = useRef(state.activeTool);
@@ -104,7 +141,8 @@ export const FinancialChart: React.FC = () => {
       phase: 'idle' | 'drawing' | 'dragging';
       activeDrawingId: string | null;
       dragAnchor: number | null;
-  }>({ phase: 'idle', activeDrawingId: null, dragAnchor: null });
+      didMove: boolean;
+  }>({ phase: 'idle', activeDrawingId: null, dragAnchor: null, didMove: false });
 
   // --- REACT STATE ---
   const [legend, setLegend] = useState<{
@@ -126,14 +164,27 @@ export const FinancialChart: React.FC = () => {
   // Selected Drawing State for Toolbar
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
 
-  const { clearDrawingsTrigger } = useChart();
-
   // Handle Clear All Trigger from Context
   useEffect(() => {
     if (clearDrawingsTrigger > 0) {
       handleClearAll();
     }
   }, [clearDrawingsTrigger]);
+
+  // --- UNDO / REDO WRAPPERS WITH HARD WIPE ---
+  const handleUndo = useCallback(() => {
+    if (canUndo) {
+        trendlinePrimitiveRef.current?.hardReset();
+        undo();
+    }
+  }, [canUndo, undo]);
+
+  const handleRedo = useCallback(() => {
+    if (canRedo) {
+        trendlinePrimitiveRef.current?.hardReset();
+        redo();
+    }
+  }, [canRedo, redo]);
 
   // --- KEYBOARD SHORTCUTS ---
   useEffect(() => {
@@ -142,10 +193,22 @@ export const FinancialChart: React.FC = () => {
               e.preventDefault();
               toggleInvertScale();
           }
+
+          // Undo: Ctrl + Z
+          if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !e.shiftKey) {
+              e.preventDefault();
+              handleUndo();
+          }
+
+          // Redo: Ctrl + Y or Ctrl + Shift + Z
+          if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyY' || (e.code === 'KeyZ' && e.shiftKey))) {
+              e.preventDefault();
+              handleRedo();
+          }
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleInvertScale]);
+  }, [toggleInvertScale, handleUndo, handleRedo]);
 
   // --- 1. TOOL & STATE SYNC (No Re-Render of Chart) ---
   useEffect(() => {
@@ -154,9 +217,17 @@ export const FinancialChart: React.FC = () => {
     isReplayModeRef.current = state.replay.isActive;
     isReplayWaitingCutRef.current = state.replay.isWaitingForCut;
 
+    const isDrawingTool = state.activeTool !== 'cursor' && state.activeTool !== 'crosshair';
+    
+    // MANDATE: Pointer-Event Guard
+    // We only "Lock" the primitive if we want to completely disable drawing interaction.
+    // Since 'cursor' and 'crosshair' are used for selection, they count as "active" interaction modes.
+    const isInteractionActive = true; 
+    trendlinePrimitiveRef.current?.setIsLocked(!isInteractionActive);
+
     // Apply CSS Locking Class
     if (chartWrapperRef.current) {
-        if (state.activeTool !== 'cursor' && state.activeTool !== 'crosshair') {
+        if (isDrawingTool) {
             chartWrapperRef.current.classList.add('drawing-active');
         } else if (state.replay.isWaitingForCut) {
             chartWrapperRef.current.style.cursor = 'cell'; // Scissors/Cut cursor visual
@@ -170,7 +241,8 @@ export const FinancialChart: React.FC = () => {
         setSelectedDrawingId(null);
         setLocalDrawings(prev => {
             const next = prev.map(d => ({ ...d, selected: false }));
-            trendlinePrimitiveRef.current?.setDrawings(next);
+            // Reactive Pull Sync
+            trendlinePrimitiveRef.current?.syncWithRegistry(next, transientDrawingsRef.current);
             return next;
         });
     }
@@ -203,14 +275,12 @@ export const FinancialChart: React.FC = () => {
   // Sync Drawings from Registry to Primitive (Hydration Loop)
   useEffect(() => {
      if (trendlinePrimitiveRef.current) {
-         trendlinePrimitiveRef.current.setDrawings(drawings);
-         
-         // Clean up Shadow Registry
+         // Clean up Shadow Registry against latest drawings
          const persistedIds = new Set(drawings.map(d => d.id));
          transientDrawingsRef.current = transientDrawingsRef.current.filter(d => !persistedIds.has(d.id));
-         trendlinePrimitiveRef.current.setTransientDrawings(transientDrawingsRef.current);
          
-         trendlinePrimitiveRef.current._requestUpdate();
+         // MANDATE: Reactive Pull Sync
+         trendlinePrimitiveRef.current.syncWithRegistry(drawings, transientDrawingsRef.current);
      }
   }, [drawings]);
 
@@ -282,7 +352,9 @@ export const FinancialChart: React.FC = () => {
     const trendlinePrimitive = new TrendlinePrimitive();
     series.attachPrimitive(trendlinePrimitive);
     trendlinePrimitiveRef.current = trendlinePrimitive;
-    trendlinePrimitive.setDrawings(drawings);
+    
+    // MANDATE: Initial Reactive Pull Sync
+    trendlinePrimitive.syncWithRegistry(drawings, transientDrawingsRef.current);
 
     // Legend Listener
     chart.subscribeCrosshairMove((param) => {
@@ -459,7 +531,7 @@ export const FinancialChart: React.FC = () => {
                  setSelectedDrawingId(null);
                  setLocalDrawings(prev => {
                      const next = prev.map(d => ({ ...d, selected: false }));
-                     primitive?.setDrawings(next);
+                     primitive?.syncWithRegistry(next, transientDrawingsRef.current);
                      return next;
                  });
             }
@@ -468,7 +540,8 @@ export const FinancialChart: React.FC = () => {
                 e.preventDefault(); 
                 e.stopImmediatePropagation();
 
-                const drawing = primitive?.drawings.find(d => d.id === hit.drawing.id);
+                // MANDATE: Use Registry source directly to avoid stale primitive data
+                const drawing = drawings.find(d => d.id === hit.drawing.id);
                 if (drawing) {
                     currentDrawingRef.current = { ...drawing, selected: true };
                     primitive?.setActiveInteractionId(drawing.id);
@@ -486,13 +559,14 @@ export const FinancialChart: React.FC = () => {
                     drawingStateRef.current = {
                         phase: 'dragging',
                         activeDrawingId: drawing.id,
-                        dragAnchor: hit.anchor ?? null
+                        dragAnchor: hit.anchor ?? null,
+                        didMove: false
                     };
 
                     setSelectedDrawingId(drawing.id);
                     setLocalDrawings(prev => {
                         const next = prev.map(d => ({ ...d, selected: d.id === hit.drawing.id }));
-                        primitive?.setDrawings(next);
+                        primitive?.syncWithRegistry(next, transientDrawingsRef.current);
                         return next;
                     });
                 }
@@ -500,7 +574,7 @@ export const FinancialChart: React.FC = () => {
                 setSelectedDrawingId(null);
                 setLocalDrawings(prev => {
                      const next = prev.map(d => ({ ...d, selected: false }));
-                     primitive?.setDrawings(next);
+                     primitive?.syncWithRegistry(next, transientDrawingsRef.current);
                      return next;
                  });
             }
@@ -586,6 +660,8 @@ export const FinancialChart: React.FC = () => {
                 trendlinePrimitiveRef.current?.updateTempDrawing(currentDrawingRef.current);
             }
         } else if (state.phase === 'dragging') {
+            drawingStateRef.current.didMove = true; // Mark as moved for history
+
             if (state.dragAnchor !== null) {
                 if (drawing.type === 'text') {
                      currentDrawingRef.current = { ...drawing, points: [finalPoint] };
@@ -621,7 +697,7 @@ export const FinancialChart: React.FC = () => {
 
     const handleMouseUp = () => {
         if (!currentDrawingRef.current) {
-            drawingStateRef.current = { phase: 'idle', activeDrawingId: null, dragAnchor: null };
+            drawingStateRef.current = { phase: 'idle', activeDrawingId: null, dragAnchor: null, didMove: false };
             dragOriginRef.current = null;
             trendlinePrimitiveRef.current?.setActiveInteractionId(null);
             return;
@@ -658,21 +734,25 @@ export const FinancialChart: React.FC = () => {
             return;
         }
 
-        if (state.phase === 'dragging') commitDrawing(d);
+        if (state.phase === 'dragging') {
+            commitDrawing(d, state.didMove);
+        }
         dragOriginRef.current = null;
     };
 
-    const commitDrawing = async (drawing: Drawing) => {
+    const commitDrawing = async (drawing: Drawing, isMove: boolean = false) => {
         // Remove from transient ref as it's now being persisted
         transientDrawingsRef.current = transientDrawingsRef.current.filter(d => d.id !== drawing.id);
-        trendlinePrimitiveRef.current?.setTransientDrawings([...transientDrawingsRef.current]);
+        
+        // MANDATE: Reactive Pull Sync
+        trendlinePrimitiveRef.current?.syncWithRegistry(drawings, [...transientDrawingsRef.current]);
 
         trendlinePrimitiveRef.current?.setActiveInteractionId(null);
-        drawingStateRef.current = { phase: 'idle', activeDrawingId: null, dragAnchor: null };
+        drawingStateRef.current = { phase: 'idle', activeDrawingId: null, dragAnchor: null, didMove: false };
         trendlinePrimitiveRef.current?.updateTempDrawing(null);
         currentDrawingRef.current = null;
         
-        await saveDrawing(drawing);
+        await saveDrawing(drawing, isMove);
     };
 
     const abortDrawing = () => {
@@ -801,8 +881,16 @@ export const FinancialChart: React.FC = () => {
   const handleTextApply = (text: string) => {
       const isEdit = !!textModal.editDrawingId;
       if (isEdit) {
-           const current = drawings.find(d => d.id === textModal.editDrawingId);
-           if (current) saveDrawing({ ...current, properties: { ...current.properties, text } });
+           const drawingId = textModal.editDrawingId;
+           setLocalDrawings(prev => {
+               const current = prev.find(d => d.id === drawingId);
+               if (current) {
+                   const updated = { ...current, properties: { ...current.properties, text } };
+                   saveDrawing(updated);
+                   return prev.map(d => d.id === drawingId ? updated : d);
+               }
+               return prev;
+           });
       } else {
            if (!text.trim()) { setTextModal({ ...textModal, isOpen: false }); setTool('cursor'); return; }
            const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: `${state.symbol}_${state.interval}`, type: 'text', points: [{ time: textModal.time, price: textModal.price }], properties: { color: currentTheme.text, lineWidth: 1, lineStyle: 0, text: text, fontSize: 14, showBackground: false }, selected: true };
@@ -832,8 +920,16 @@ export const FinancialChart: React.FC = () => {
 
   const handleDrawingUpdate = (updates: Partial<Drawing['properties']>) => {
       if (!selectedDrawingId) return;
-      const current = drawings.find(d => d.id === selectedDrawingId);
-      if (current) saveDrawing({ ...current, properties: { ...current.properties, ...updates } });
+      const drawingId = selectedDrawingId;
+      setLocalDrawings(prev => {
+          const current = prev.find(d => d.id === drawingId);
+          if (current) {
+              const updated = { ...current, properties: { ...current.properties, ...updates } };
+              saveDrawing(updated);
+              return prev.map(d => d.id === drawingId ? updated : d);
+          }
+          return prev;
+      });
   };
 
   const handleDrawingDelete = (id?: string) => {
@@ -843,11 +939,15 @@ export const FinancialChart: React.FC = () => {
       console.log('DELETING ID:', targetId);
       
       // MANDATE 1.9.4: ZOMBIE PREVENTION
-      setLocalDrawings(prev => prev.filter(d => d.id !== targetId));
+      setLocalDrawings(prev => {
+          const next = prev.filter(d => d.id !== targetId);
+          // MANDATE: Reactive Pull Sync
+          trendlinePrimitiveRef.current?.syncWithRegistry(next, transientDrawingsRef.current);
+          return next;
+      });
 
       // Surgical Wipe from Primitive first (Visual & Hit-Test)
       if (trendlinePrimitiveRef.current) {
-          trendlinePrimitiveRef.current.removeDrawing(targetId);
           trendlinePrimitiveRef.current.setActiveInteractionId(null);
           trendlinePrimitiveRef.current.updateTempDrawing(null);
       }
@@ -881,6 +981,8 @@ export const FinancialChart: React.FC = () => {
 
       setSelectedDrawingId(null);
       setLocalDrawings([]);
+      // Ensure primitive is absolutely cleared
+      trendlinePrimitiveRef.current?.syncWithRegistry([], []);
   };
 
   return (

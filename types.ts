@@ -75,6 +75,12 @@ export interface Drawing {
     hovered?: boolean;
 }
 
+export interface DrawingCommand {
+    execute: () => void;
+    undo: () => void;
+    label?: string; // e.g., "Add Trendline", "Move Rectangle"
+}
+
 // Lane 4: Market Stream Data (Binance MiniTicker Format)
 export interface MiniTicker {
   s: string; // Symbol

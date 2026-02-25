@@ -34,6 +34,15 @@ interface ChartContextType {
   setReplaySpeed: (speed: number) => void;
   setReplayWaitingForCut: (isWaiting: boolean) => void;
 
+  // Drawing History (Undo/Redo)
+  undoTrigger: number;
+  redoTrigger: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
+  setCanUndoRedo: (canUndo: boolean, canRedo: boolean) => void;
+
   // Clear Drawings Trigger
   clearDrawingsTrigger: number;
   chartRevision: number;
@@ -78,6 +87,19 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isDataExplorerOpen, setIsDataExplorerOpen] = useState(false);
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
   const [isStickyNoteManagerOpen, setIsStickyNoteManagerOpen] = useState(false);
+
+  // Drawing History State
+  const [undoTrigger, setUndoTrigger] = useState(0);
+  const [redoTrigger, setRedoTrigger] = useState(0);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const undo = () => setUndoTrigger(prev => prev + 1);
+  const redo = () => setRedoTrigger(prev => prev + 1);
+  const setCanUndoRedo = (u: boolean, r: boolean) => {
+      setCanUndo(u);
+      setCanRedo(r);
+  };
 
   // Clear Drawings Logic
   const [clearDrawingsTrigger, setClearDrawingsTrigger] = useState(0);
@@ -336,6 +358,13 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setReplayPlaying,
         setReplaySpeed,
         setReplayWaitingForCut,
+        undoTrigger,
+        redoTrigger,
+        canUndo,
+        canRedo,
+        undo,
+        redo,
+        setCanUndoRedo,
         clearDrawingsTrigger,
         chartRevision,
         clearDrawings,

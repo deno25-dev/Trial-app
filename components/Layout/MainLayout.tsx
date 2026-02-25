@@ -20,6 +20,7 @@ import clsx from 'clsx';
 export const MainLayout: React.FC = () => {
   const [panelHeight, setPanelHeight] = useState(256); // Default 256px
   const [lastOpenHeight, setLastOpenHeight] = useState(256);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   
   // Use ChartContext for Data Explorer & Trade Panel State
@@ -48,10 +49,12 @@ export const MainLayout: React.FC = () => {
       
       setPanelHeight(newHeight);
       
-      // Only update memory if we are effectively "open" (above 60px)
-      // This prevents remembering "41px" as the open state
-      if (newHeight > 60) {
+      // Update memory and collapsed state based on dragging
+      if (newHeight > 40) {
           setLastOpenHeight(newHeight);
+          setIsCollapsed(false);
+      } else {
+          setIsCollapsed(true);
       }
     };
 
@@ -75,15 +78,16 @@ export const MainLayout: React.FC = () => {
   }, [isDragging]);
 
   const togglePanel = () => {
-    if (panelHeight > 40) {
+    if (!isCollapsed) {
       // Closing
       setLastOpenHeight(panelHeight);
       setPanelHeight(40);
+      setIsCollapsed(true);
     } else {
       // Opening
-      // Restore to last known height, or default to 256 if memory is too small/invalid
       const targetHeight = lastOpenHeight < 100 ? 256 : lastOpenHeight;
       setPanelHeight(targetHeight);
+      setIsCollapsed(false);
     }
   };
 
@@ -138,7 +142,7 @@ export const MainLayout: React.FC = () => {
             style={{ height: panelHeight }}
             className={clsx(
               "border-t border-border bg-background z-30 overflow-hidden shrink-0 relative flex flex-col shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.2)]",
-              !isDragging && "transition-all duration-200 ease-out"
+              !isDragging && "transition-[height] duration-200 ease-out"
             )}
           >
             {/* Resizer Handle */}
@@ -150,7 +154,7 @@ export const MainLayout: React.FC = () => {
             <BottomPanel 
               height={panelHeight} 
               onToggle={togglePanel} 
-              isExpanded={panelHeight > 40}
+              isExpanded={!isCollapsed}
             />
           </div>
         </div>

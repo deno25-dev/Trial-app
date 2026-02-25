@@ -575,7 +575,7 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     _dirty: boolean = true;
     _textBoundsCache: Map<string, { x: number, y: number, w: number, h: number }> = new Map();
     _activeInteractionId: string | null = null;
-    _rendererData: any = null;
+    _isLocked: boolean = false; // Guard for Pointer-Events
 
     constructor() {
         this._paneViews = [new TrendlinePaneView(this)];
@@ -599,55 +599,54 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
         return null;
     }
 
-    public setData(data: OhlcData[]) {
-        this._data = data;
-        this._dirty = true;
-        this._rendererData = null;
-        this._requestUpdate();
-        this._paneViews.forEach(pv => pv.update());
-    }
-
-    public setDrawings(drawings: Drawing[]) {
-        this._drawings = [...drawings]; // Explicit overwrite with new array
-        const ids = new Set(this._drawings.map(d => d.id));
+    /**
+     * MANDATE: Reactive Pull Synchronization
+     * Forces the primitive to align with the registry state.
+     */
+    public syncWithRegistry(drawings: Drawing[], transient: Drawing[] = []) {
+        this._drawings = drawings;
+        this._transientDrawings = transient;
+        
+        // Hard cache purge
+        const ids = new Set([...this._drawings, ...this._transientDrawings].map(d => d.id));
         for (const id of this._textBoundsCache.keys()) {
             if (!ids.has(id)) this._textBoundsCache.delete(id);
         }
+
         this._dirty = true;
-        this._rendererData = null;
+        this._paneViews.forEach(pv => pv.update());
+        this._requestUpdate();
+    }
+
+    public setData(data: OhlcData[]) {
+        this._data = data;
+        this._dirty = true;
         this._requestUpdate();
         this._paneViews.forEach(pv => pv.update());
+    }
+
+    // Deprecated in favor of syncWithRegistry, but kept for compatibility during transition
+    public setDrawings(drawings: Drawing[]) {
+        this.syncWithRegistry(drawings, this._transientDrawings);
     }
     
     public setTransientDrawings(drawings: Drawing[]) {
-        this._transientDrawings = drawings;
-        this._dirty = true;
-        this._rendererData = null;
-        this._requestUpdate();
-        this._paneViews.forEach(pv => pv.update());
+        this.syncWithRegistry(this._drawings, drawings);
     }
     
     public removeDrawing(id: string) {
-        console.log("INTERNAL_WIPE_SUCCESS", id);
-        this._drawings = this._drawings.filter(d => d.id !== id);
-        this._transientDrawings = this._transientDrawings.filter(d => d.id !== id);
-        this._textBoundsCache.delete(id);
-        this._dirty = true;
-        this._rendererData = null;
+        this.syncWithRegistry(
+            this._drawings.filter(d => d.id !== id),
+            this._transientDrawings.filter(d => d.id !== id)
+        );
+    }
 
-        // MANDATE 1.9.4: Atomic Wipe & Repaint
-        if (this._chart) {
-            // Force the engine to pulse its internal crosshair and timescale cache
-            this._chart.applyOptions({});
-        }
-
-        this._requestUpdate();
-        this._paneViews.forEach(pv => pv.update());
+    public setIsLocked(locked: boolean) {
+        this._isLocked = locked;
     }
 
     /**
      * MANDATE 1.4 / 0.17: Synchronous State Wipe
-     * Forcefully clears all drawing state and cancels any pending renders.
      */
     public hardReset() {
         this._drawings = [];
@@ -656,7 +655,6 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
         this._textBoundsCache.clear();
         this._activeInteractionId = null;
         this._dirty = true;
-        this._rendererData = null;
         
         if (this._chart) {
             this._chart.applyOptions({});
@@ -669,7 +667,6 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     public updateTempDrawing(drawing: Drawing | null) {
         this._tempDrawing = drawing;
         this._dirty = true;
-        this._rendererData = null;
         this._requestUpdate();
         this._paneViews.forEach(pv => pv.update());
     }
@@ -677,7 +674,6 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     public setActiveInteractionId(id: string | null) {
         this._activeInteractionId = id;
         this._dirty = true;
-        this._rendererData = null;
         this._requestUpdate();
         this._paneViews.forEach(pv => pv.update());
     }
@@ -693,16 +689,18 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     
     // --- HIT TESTING (Main Thread) ---
     hitTest(x: number, y: number): (PrimitiveHoveredItem & { drawing: Drawing, anchor?: number }) | null {
-        // ZOMBIE PREVENTION: If no drawings exist, kill hit-testing immediately
-        if (!this._chart || !this._series || this._data.length === 0) return null;
+        // POINTER-EVENT GUARD: Only return null if interactions are explicitly disabled.
+        // We check _isLocked which is controlled by the active tool and interaction state.
+        if (this._isLocked || !this._chart || !this._series || this._data.length === 0) return null;
+        
+        // If no drawings exist, kill hit-testing immediately
         if (this._drawings.length === 0 && this._transientDrawings.length === 0 && !this._tempDrawing) return null;
         
-        const threshold = 6; // Strict threshold for better precision
+        const threshold = 6; 
         
         let bestHit: (PrimitiveHoveredItem & { drawing: Drawing, anchor?: number }) | null = null;
         let minDistance = Infinity;
 
-        // Check both persisted and transient drawings (Reversed for Top-Most Priority)
         const allDrawings = [...this._drawings, ...this._transientDrawings];
 
         for (let i = allDrawings.length - 1; i >= 0; i--) {

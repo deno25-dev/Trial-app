@@ -29,7 +29,11 @@ export const TopBar: React.FC = () => {
       toggleSearch, 
       isSearchOpen, 
       toggleFavorite,
-      toggleReplay // Replay Toggle
+      toggleReplay, // Replay Toggle
+      undo,
+      redo,
+      canUndo,
+      canRedo
   } = useChart();
   
   // Timeframe Dropdown State
@@ -112,10 +116,20 @@ export const TopBar: React.FC = () => {
       <Separator />
 
       {/* 3. History & Replay */}
-      <button className={getBtnClass(false)}>
+      <button 
+        onClick={undo}
+        disabled={!canUndo}
+        className={clsx(getBtnClass(false), !canUndo && "opacity-30 cursor-not-allowed")}
+        title="Undo (Ctrl+Z)"
+      >
         <Undo2 size={18} strokeWidth={2} />
       </button>
-      <button className={getBtnClass(false)}>
+      <button 
+        onClick={redo}
+        disabled={!canRedo}
+        className={clsx(getBtnClass(false), !canRedo && "opacity-30 cursor-not-allowed")}
+        title="Redo (Ctrl+Y)"
+      >
         <Redo2 size={18} strokeWidth={2} />
       </button>
       
