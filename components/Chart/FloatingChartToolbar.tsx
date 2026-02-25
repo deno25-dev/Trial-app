@@ -133,7 +133,7 @@ export const FloatingChartToolbar: React.FC = () => {
                 {isMenuOpen && (
                     <div 
                         ref={menuRef}
-                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 bg-surface/60 backdrop-blur-md border border-white/10 shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-bottom flex flex-col py-1 cursor-default"
+                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 glass-menu shadow-2xl rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-bottom flex flex-col py-1 cursor-default"
                         onMouseDown={(e) => e.stopPropagation()} // Prevent drag starting from menu
                     >
                         {/* Header */}

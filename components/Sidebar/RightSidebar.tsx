@@ -151,7 +151,7 @@ export const RightSidebar: React.FC = () => {
             />
 
             {isToolsOpen && (
-                <div className="absolute right-full top-0 mr-4 w-60 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right z-50 py-1">
+                <div className="absolute right-full top-0 mr-4 w-60 glass-menu shadow-2xl rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right z-50 py-1">
                     
                     {/* Indicators */}
                     <button className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-text hover:bg-white/10 transition-colors group">
@@ -212,7 +212,7 @@ export const RightSidebar: React.FC = () => {
             />
 
             {isLayoutOpen && (
-                <div className="absolute right-full top-0 mr-4 w-60 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right z-50 flex flex-col py-1">
+                <div className="absolute right-full top-0 mr-4 w-60 glass-menu shadow-2xl rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right z-50 flex flex-col py-1">
                     
                     {/* Header */}
                     <div className="px-3 py-2 border-b border-white/5 bg-white/5 flex items-center justify-between">
@@ -300,7 +300,7 @@ export const RightSidebar: React.FC = () => {
             />
 
             {isObjectTreeOpen && (
-                <div className="absolute right-full top-0 mr-4 w-64 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right z-50 flex flex-col">
+                <div className="absolute right-full top-0 mr-4 w-64 glass-menu shadow-2xl rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right z-50 flex flex-col">
                     {/* Popup Header */}
                     <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/5 bg-white/5">
                         <div className="flex items-center gap-2 text-text font-bold text-xs">
@@ -369,7 +369,7 @@ export const RightSidebar: React.FC = () => {
             />
 
             {isSettingsOpen && (
-                <div className="absolute right-full bottom-0 mr-4 w-48 bg-surface/60 backdrop-blur-md border border-border/50 shadow-2xl rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-bottom-right z-50 py-1">
+                <div className="absolute right-full bottom-0 mr-4 w-48 glass-menu shadow-2xl rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-bottom-right z-50 py-1">
                   
                   {/* Crosshair */}
                   <button 

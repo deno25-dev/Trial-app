@@ -164,7 +164,7 @@ export const DrawingTools: React.FC = () => {
                <div 
                  ref={lineToolsRef}
                  style={{ top: linePos.top, left: linePos.left }}
-                 className="fixed w-56 bg-surface/80 backdrop-blur-xl border border-white/10 shadow-2xl rounded-lg overflow-hidden z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                 className="fixed w-56 glass-menu shadow-2xl rounded-xl overflow-hidden z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left"
                >
                     <div className="px-3 py-2 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
                         Line Tools
@@ -226,7 +226,7 @@ export const DrawingTools: React.FC = () => {
                <div 
                  ref={shapesRef}
                  style={{ top: shapesPos.top, left: shapesPos.left }}
-                 className="fixed w-56 bg-surface/80 backdrop-blur-xl border border-white/10 shadow-2xl rounded-lg overflow-hidden z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                 className="fixed w-56 glass-menu shadow-2xl rounded-xl overflow-hidden z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-left"
                >
                     <div className="px-3 py-2 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
                         Geometric Shapes

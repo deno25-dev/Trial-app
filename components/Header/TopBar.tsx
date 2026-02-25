@@ -1,6 +1,7 @@
 
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useChart } from '../../context/ChartContext';
 import { ALL_TIMEFRAMES, SKIN_CONFIG } from '../../constants';
 import { AppSkin } from '../../types';
@@ -43,6 +44,8 @@ export const TopBar: React.FC = () => {
   // Skins Dropdown State
   const [isSkinMenuOpen, setIsSkinMenuOpen] = useState(false);
   const skinMenuRef = useRef<HTMLDivElement>(null);
+  const skinButtonRef = useRef<HTMLButtonElement>(null);
+  const [skinPos, setSkinPos] = useState({ top: 0, right: 0 });
 
   // Handle click outside for dropdowns
   useEffect(() => {
@@ -62,6 +65,17 @@ export const TopBar: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isTimeframeOpen, isSkinMenuOpen]);
+
+  // Update skin menu position
+  useEffect(() => {
+    if (isSkinMenuOpen && skinButtonRef.current) {
+        const rect = skinButtonRef.current.getBoundingClientRect();
+        setSkinPos({ 
+            top: rect.bottom + 4, 
+            right: window.innerWidth - rect.right 
+        });
+    }
+  }, [isSkinMenuOpen]);
 
   const Separator = () => <div className="h-5 w-px bg-white/10 mx-1" />;
 
@@ -224,8 +238,9 @@ export const TopBar: React.FC = () => {
       {/* 5. Right Side Tools */}
       <div className="flex items-center gap-1">
         {/* Skins Selector */}
-        <div className="relative" ref={skinMenuRef}>
+        <div className="relative">
             <button
+                ref={skinButtonRef}
                 onClick={() => setIsSkinMenuOpen(!isSkinMenuOpen)}
                 className={getBtnClass(isSkinMenuOpen)}
                 title="Themes / Skins"
@@ -233,8 +248,12 @@ export const TopBar: React.FC = () => {
                 <Palette size={18} strokeWidth={2} />
             </button>
             
-            {isSkinMenuOpen && (
-                <div className="absolute top-full right-0 mt-1 w-48 bg-surface/60 backdrop-blur-md border border-border/50 shadow-xl rounded-md overflow-hidden z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+            {isSkinMenuOpen && createPortal(
+                <div 
+                    ref={skinMenuRef}
+                    style={{ top: skinPos.top, right: skinPos.right }}
+                    className="fixed w-48 glass-menu shadow-2xl rounded-xl overflow-hidden z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right"
+                >
                     <div className="px-3 py-1.5 text-[10px] font-bold text-muted uppercase tracking-widest border-b border-white/5 mb-1">
                         Skins
                     </div>
@@ -256,7 +275,8 @@ export const TopBar: React.FC = () => {
                             {state.skin === skinKey && <Check size={12} />}
                         </button>
                     ))}
-                </div>
+                </div>,
+                document.body
             )}
         </div>
       </div>
