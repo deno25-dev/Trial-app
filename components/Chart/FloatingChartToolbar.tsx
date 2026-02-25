@@ -81,10 +81,13 @@ export const FloatingChartToolbar: React.FC = () => {
               onClick();
               setIsMenuOpen(false);
           }}
-          className="w-full flex items-center justify-between px-3 py-2 text-xs text-muted hover:bg-white/5 hover:text-text transition-colors group"
+          className={clsx(
+              "w-full flex items-center justify-between px-3 py-2 text-xs transition-colors group",
+              active ? "text-primary font-bold bg-primary/10" : "text-text hover:bg-white/5 hover:text-text"
+          )}
       >
           <span>{label}</span>
-          {active ? <Check size={14} className="text-primary" /> : (shortcut && <span className="text-[10px] opacity-50">{shortcut}</span>)}
+          {active ? <Check size={14} className="text-primary" /> : (shortcut && <span className="text-[10px] text-muted opacity-50">{shortcut}</span>)}
       </button>
   );
 
