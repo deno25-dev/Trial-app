@@ -64,7 +64,7 @@ const Separator = () => (
 );
 
 export const DrawingTools: React.FC = () => {
-  const { state, setTool, toggleMagnet, toggleGrid, toggleFavoritesBar, clearDrawings } = useChart();
+  const { state, setTool, toggleMagnet, toggleGrid, toggleFavoritesBar, clearDrawings, toggleFavoriteTool } = useChart();
 
   // State for Line Tools Popup
   const [isLineToolsOpen, setIsLineToolsOpen] = useState(false);
@@ -116,19 +116,19 @@ export const DrawingTools: React.FC = () => {
 
   // Line Tools Data
   const lineTools = [
-    { id: 'trendline', label: 'Trend Line', icon: <Slash size={16} />, favored: true },
-    { id: 'ray', label: 'Ray', icon: <ArrowUpRight size={16} />, favored: false },
-    { id: 'horizontal_ray', label: 'Horizontal Ray', icon: <ArrowRight size={16} />, favored: false },
-    { id: 'arrow_line', label: 'Arrow Line', icon: <ArrowUpRight size={16} className="rotate-45" />, favored: false },
-    { id: 'vertical_line', label: 'Vertical Line', icon: <MoveVertical size={16} />, favored: false },
-    { id: 'horizontal_line', label: 'Horizontal Line', icon: <Minus size={16} />, favored: false },
+    { id: 'trendline', label: 'Trend Line', icon: <Slash size={16} /> },
+    { id: 'ray', label: 'Ray', icon: <ArrowUpRight size={16} /> },
+    { id: 'horizontal_ray', label: 'Horizontal Ray', icon: <ArrowRight size={16} /> },
+    { id: 'arrow_line', label: 'Arrow Line', icon: <ArrowUpRight size={16} className="rotate-45" /> },
+    { id: 'vertical_line', label: 'Vertical Line', icon: <MoveVertical size={16} /> },
+    { id: 'horizontal_line', label: 'Horizontal Line', icon: <Minus size={16} /> },
   ];
 
   // Shape Tools Data
   const shapeTools = [
-    { id: 'rectangle', label: 'Rectangle', icon: <Square size={16} />, favored: true },
-    { id: 'triangle', label: 'Triangle', icon: <Triangle size={16} />, favored: false },
-    { id: 'rotated_rectangle', label: 'Rotated Rectangle', icon: <Square size={16} className="rotate-45" />, favored: false },
+    { id: 'rectangle', label: 'Rectangle', icon: <Square size={16} /> },
+    { id: 'triangle', label: 'Triangle', icon: <Triangle size={16} /> },
+    { id: 'rotated_rectangle', label: 'Rotated Rectangle', icon: <Square size={16} className="rotate-45" /> },
   ];
 
   const isLineToolActive = ['trendline', 'ray', 'horizontal_line', 'vertical_line', 'arrow_line', 'horizontal_ray'].includes(state.activeTool);
@@ -172,6 +172,7 @@ export const DrawingTools: React.FC = () => {
                     
                     {lineTools.map((tool) => {
                         const isActive = state.activeTool === tool.id;
+                        const isFavored = state.favoriteTools.includes(tool.id as any);
                         return (
                             <button
                               key={tool.id}
@@ -195,13 +196,14 @@ export const DrawingTools: React.FC = () => {
                                 <div 
                                   className={clsx(
                                       "p-1 rounded hover:bg-surface transition-colors",
-                                      tool.favored ? "text-yellow-500" : "text-muted opacity-0 group-hover:opacity-100"
+                                      isFavored ? "text-yellow-500" : "text-muted opacity-0 group-hover:opacity-100"
                                   )}
                                   onClick={(e) => {
                                       e.stopPropagation();
+                                      toggleFavoriteTool(tool.id as any);
                                   }}
                                 >
-                                    <Star size={12} fill={tool.favored ? "currentColor" : "none"} />
+                                    <Star size={12} fill={isFavored ? "currentColor" : "none"} />
                                 </div>
                             </button>
                         );
@@ -234,6 +236,7 @@ export const DrawingTools: React.FC = () => {
                     
                     {shapeTools.map((tool) => {
                         const isActive = state.activeTool === tool.id;
+                        const isFavored = state.favoriteTools.includes(tool.id as any);
                         return (
                             <button
                               key={tool.id}
@@ -257,13 +260,14 @@ export const DrawingTools: React.FC = () => {
                                 <div 
                                   className={clsx(
                                       "p-1 rounded hover:bg-surface transition-colors",
-                                      tool.favored ? "text-yellow-500" : "text-muted opacity-0 group-hover:opacity-100"
+                                      isFavored ? "text-yellow-500" : "text-muted opacity-0 group-hover:opacity-100"
                                   )}
                                   onClick={(e) => {
                                       e.stopPropagation();
+                                      toggleFavoriteTool(tool.id as any);
                                   }}
                                 >
-                                    <Star size={12} fill={tool.favored ? "currentColor" : "none"} />
+                                    <Star size={12} fill={isFavored ? "currentColor" : "none"} />
                                 </div>
                             </button>
                         );

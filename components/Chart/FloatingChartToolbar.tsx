@@ -1,11 +1,32 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GripVertical, TrendingUp, Square, Settings, Check } from 'lucide-react';
+import { GripVertical, TrendingUp, Square, Settings, Check, Slash, ArrowUpRight, ArrowRight, Minus, MoveVertical, Triangle, Star } from 'lucide-react';
 import { useChart } from '../../context/ChartContext';
+import { DrawingToolType } from '../../types';
 import clsx from 'clsx';
 
+// Tool icon mapping
+const toolIcons: Record<DrawingToolType, React.ReactNode> = {
+  trendline: <Slash size={18} />,
+  ray: <ArrowUpRight size={18} />,
+  horizontal_ray: <ArrowRight size={18} />,
+  arrow_line: <ArrowUpRight size={18} className="rotate-45" />,
+  vertical_line: <MoveVertical size={18} />,
+  horizontal_line: <Minus size={18} />,
+  rectangle: <Square size={18} />,
+  triangle: <Triangle size={18} />,
+  rotated_rectangle: <Square size={18} className="rotate-45" />,
+  crosshair: <TrendingUp size={18} />,
+  cursor: <TrendingUp size={18} />,
+  brush: <TrendingUp size={18} />,
+  text: <TrendingUp size={18} />,
+  pencil: <TrendingUp size={18} />,
+  measure: <TrendingUp size={18} />,
+  fib_retracement: <TrendingUp size={18} />,
+};
+
 export const FloatingChartToolbar: React.FC = () => {
-  const { state, setPriceScaleMode, toggleAutoScale, toggleInvertScale } = useChart();
+  const { state, setPriceScaleMode, toggleAutoScale, toggleInvertScale, setTool } = useChart();
   
   // State to track x/y offset from the default center position
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -110,13 +131,41 @@ export const FloatingChartToolbar: React.FC = () => {
 
             <div className="w-px h-4 bg-white/10 mx-1" />
 
-            {/* Tools */}
-            <button className="p-2 text-primary hover:text-primary hover:bg-primary/10 rounded-full transition-colors">
-                <TrendingUp size={18} />
-            </button>
-            <button className="p-2 text-muted hover:text-text hover:bg-white/10 rounded-full transition-colors">
-                <Square size={18} />
-            </button>
+            {/* Favorite Tools */}
+            {state.favoriteTools.length > 0 ? (
+                state.favoriteTools.map((toolId) => {
+                    const isActive = state.activeTool === toolId;
+                    return (
+                        <button
+                            key={toolId}
+                            onClick={() => setTool(toolId)}
+                            className={clsx(
+                                "p-2 rounded-full transition-colors",
+                                isActive ? "text-primary hover:text-primary hover:bg-primary/10" : "text-muted hover:text-text hover:bg-white/10"
+                            )}
+                            title={toolId.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        >
+                            {toolIcons[toolId] || <Star size={18} />}
+                        </button>
+                    );
+                })
+            ) : (
+                // Default tools when no favorites
+                <>
+                    <button 
+                        className="p-2 text-primary hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
+                        title="Trend Line"
+                    >
+                        <TrendingUp size={18} />
+                    </button>
+                    <button 
+                        className="p-2 text-muted hover:text-text hover:bg-white/10 rounded-full transition-colors"
+                        title="Rectangle"
+                    >
+                        <Square size={18} />
+                    </button>
+                </>
+            )}
 
             <div className="w-px h-4 bg-white/10 mx-1" />
 

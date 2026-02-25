@@ -575,6 +575,7 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     _dirty: boolean = true;
     _textBoundsCache: Map<string, { x: number, y: number, w: number, h: number }> = new Map();
     _activeInteractionId: string | null = null;
+    _selectedId: string | null = null;
     _isLocked: boolean = false; // Guard for Pointer-Events
 
     constructor() {
@@ -618,11 +619,21 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
         this._requestUpdate();
     }
 
-    public setData(data: OhlcData[]) {
+    public setOhlcData(data: OhlcData[]) {
         this._data = data;
         this._dirty = true;
         this._requestUpdate();
         this._paneViews.forEach(pv => pv.update());
+    }
+
+    public setData(drawings: Drawing[]) {
+        this.syncWithRegistry(drawings, this._transientDrawings);
+    }
+
+    public setSelectedId(id: string | null) {
+        this._selectedId = id;
+        this._dirty = true;
+        this._requestUpdate();
     }
 
     // Deprecated in favor of syncWithRegistry, but kept for compatibility during transition
@@ -654,6 +665,7 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
         this._tempDrawing = null;
         this._textBoundsCache.clear();
         this._activeInteractionId = null;
+        this._selectedId = null;
         this._dirty = true;
         
         if (this._chart) {
@@ -798,6 +810,7 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
             }
 
             if (currentHit && currentDist < minDistance && currentDist <= threshold) {
+                console.log(`[HIT_TEST] Match Found: ${d.id} type=${d.type} dist=${currentDist.toFixed(2)}`);
                 minDistance = currentDist;
                 bestHit = currentHit;
                 // If we found an exact/very close hit on top-most object, we can stop

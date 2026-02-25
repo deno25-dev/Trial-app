@@ -18,27 +18,33 @@ export const useDrawingRegistry = (sourceId: string) => {
     setFuture([]); // Clear redo stack on new action
   }, []);
 
-  const undo = useCallback(() => {
+  const undo = useCallback(async () => {
     if (past.length === 0) return;
     const command = past[past.length - 1];
     setPast(prev => prev.slice(0, -1));
     
     isInternalUpdateRef.current = true;
-    command.undo();
-    isInternalUpdateRef.current = false;
+    try {
+        await command.undo();
+    } finally {
+        isInternalUpdateRef.current = false;
+    }
     
     setFuture(prev => [command, ...prev]);
     Telemetry.info('UI', `Undo: ${command.label || 'Action'}`);
   }, [past]);
 
-  const redo = useCallback(() => {
+  const redo = useCallback(async () => {
     if (future.length === 0) return;
     const command = future[0];
     setFuture(prev => prev.slice(1));
     
     isInternalUpdateRef.current = true;
-    command.execute();
-    isInternalUpdateRef.current = false;
+    try {
+        await command.execute();
+    } finally {
+        isInternalUpdateRef.current = false;
+    }
     
     setPast(prev => [...prev, command]);
     Telemetry.info('UI', `Redo: ${command.label || 'Action'}`);

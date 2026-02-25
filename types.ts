@@ -38,6 +38,7 @@ export interface ChartState {
   theme: 'dark' | 'light'; // Mandate 0.7: Theme support
   skin: AppSkin;
   favorites: Timeframe[]; // Mandate 2.5: User-defined favorites
+  favoriteTools: DrawingToolType[]; // Mandate 2.6: User-defined favorite tools
   tabs: ChartTab[];
   activeTabId: string;
   replay: ReplayState; // Added Replay State

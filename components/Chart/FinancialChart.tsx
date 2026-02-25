@@ -276,7 +276,7 @@ export const FinancialChart: React.FC = () => {
         setLocalDrawings(prev => {
             const next = prev.map(d => ({ ...d, selected: false }));
             // Reactive Pull Sync
-            trendlinePrimitiveRef.current?.syncWithRegistry(next, transientDrawingsRef.current);
+            trendlinePrimitiveRef.current?.setData(next);
             return next;
         });
     }
@@ -306,18 +306,22 @@ export const FinancialChart: React.FC = () => {
       }
   }, [chartData]);
 
-  // Sync Drawings from Registry to Primitive (Hydration Loop)
+  // --- 7. HARD DEPENDENCY INJECTION (Mandate: Architectural Correction) ---
   useEffect(() => {
-     if (trendlinePrimitiveRef.current) {
-         // Clean up Shadow Registry against latest drawings
-         const persistedIds = new Set(drawings.map(d => d.id));
-         transientDrawingsRef.current = transientDrawingsRef.current.filter(d => !persistedIds.has(d.id));
-         
-         // MANDATE: Reactive Pull Sync
-         trendlinePrimitiveRef.current.syncWithRegistry(drawings, transientDrawingsRef.current);
-     }
-  }, [drawings]);
+      const primitive = trendlinePrimitiveRef.current;
+      const chart = chartApiRef.current;
+      if (!primitive || !chart) return;
 
+      // Clean up Shadow Registry against latest drawings
+      const persistedIds = new Set(drawings.map(d => d.id));
+      transientDrawingsRef.current = transientDrawingsRef.current.filter(d => !persistedIds.has(d.id));
+
+      // MANDATE: Reactive Pull Sync
+      primitive.setData(drawings); // setData now handles Drawing[]
+      primitive.setSelectedId(selectedDrawingId);
+      chart.applyOptions({}); // Force global repaint
+      
+  }, [drawings, selectedDrawingId]);
 
   // --- 3. CHART ENGINE INITIALIZATION (Run Once) ---
   const initialTheme = useMemo(() => {
@@ -388,7 +392,7 @@ export const FinancialChart: React.FC = () => {
     trendlinePrimitiveRef.current = trendlinePrimitive;
     
     // MANDATE: Initial Reactive Pull Sync
-    trendlinePrimitive.syncWithRegistry(drawings, transientDrawingsRef.current);
+    trendlinePrimitive.setData(drawings);
 
     // Legend Listener
     chart.subscribeCrosshairMove((param) => {
@@ -540,7 +544,7 @@ export const FinancialChart: React.FC = () => {
                 volumeSeriesRef.current.setData(volumes);
                 
                 // MANDATE: Update primitive data for hit-testing in replay mode
-                trendlinePrimitiveRef.current?.setData(sliced);
+                trendlinePrimitiveRef.current?.setOhlcData(sliced);
                 
                 // Drop Visual Marker (Vertical Line)
                 const marker: Drawing = {
@@ -568,7 +572,7 @@ export const FinancialChart: React.FC = () => {
                  setSelectedDrawingId(null);
                  setLocalDrawings(prev => {
                      const next = prev.map(d => ({ ...d, selected: false }));
-                     primitive?.syncWithRegistry(next, transientDrawingsRef.current);
+                     primitive?.setData(next);
                      return next;
                  });
             }
@@ -603,7 +607,7 @@ export const FinancialChart: React.FC = () => {
                     setSelectedDrawingId(drawing.id);
                     setLocalDrawings(prev => {
                         const next = prev.map(d => ({ ...d, selected: d.id === hit.drawing.id }));
-                        primitive?.syncWithRegistry(next, transientDrawingsRef.current);
+                        primitive?.setData(next);
                         return next;
                     });
                 }
@@ -611,7 +615,7 @@ export const FinancialChart: React.FC = () => {
                 setSelectedDrawingId(null);
                 setLocalDrawings(prev => {
                      const next = prev.map(d => ({ ...d, selected: false }));
-                     primitive?.syncWithRegistry(next, transientDrawingsRef.current);
+                     primitive?.setData(next);
                      return next;
                  });
             }
@@ -797,7 +801,7 @@ export const FinancialChart: React.FC = () => {
         transientDrawingsRef.current = transientDrawingsRef.current.filter(d => d.id !== drawing.id);
         
         // MANDATE: Reactive Pull Sync
-        trendlinePrimitiveRef.current?.syncWithRegistry(drawings, [...transientDrawingsRef.current]);
+        trendlinePrimitiveRef.current?.setData(drawings);
 
         trendlinePrimitiveRef.current?.setActiveInteractionId(null);
         drawingStateRef.current = { phase: 'idle', activeDrawingId: null, dragAnchor: null, didMove: false };
@@ -882,7 +886,7 @@ export const FinancialChart: React.FC = () => {
                      
                      // Periodic update to primitive data for hit-testing accuracy
                      if (nextIndex % 10 === 0) {
-                         trendlinePrimitiveRef.current?.setData(fullDataRef.current.slice(0, nextIndex + 1));
+                         trendlinePrimitiveRef.current?.setOhlcData(fullDataRef.current.slice(0, nextIndex + 1));
                      }
                  }
              } else {
@@ -923,7 +927,7 @@ export const FinancialChart: React.FC = () => {
 
       seriesRef.current.setData(candles);
       volumeSeriesRef.current.setData(volumes);
-      trendlinePrimitiveRef.current?.setData(chartData);
+      trendlinePrimitiveRef.current?.setOhlcData(chartData);
 
       const last = chartData[chartData.length - 1];
       latestDataRef.current = { candle: last, vol: last.volume };
@@ -1002,7 +1006,7 @@ export const FinancialChart: React.FC = () => {
       setLocalDrawings(prev => {
           const next = prev.filter(d => d.id !== targetId);
           // MANDATE: Reactive Pull Sync
-          trendlinePrimitiveRef.current?.syncWithRegistry(next, transientDrawingsRef.current);
+          trendlinePrimitiveRef.current?.setData(next);
           return next;
       });
 
@@ -1042,7 +1046,7 @@ export const FinancialChart: React.FC = () => {
       setSelectedDrawingId(null);
       setLocalDrawings([]);
       // Ensure primitive is absolutely cleared
-      trendlinePrimitiveRef.current?.syncWithRegistry([], []);
+      trendlinePrimitiveRef.current?.setData([]);
   };
 
   return (
@@ -1054,14 +1058,14 @@ export const FinancialChart: React.FC = () => {
       {/* MANDATE 0.16.1: Interaction Overlay with Conditional Transparency */}
       <div 
         id="drawing-canvas-layer" 
-        className={clsx(
-            "absolute inset-0 w-full h-full z-10 transition-colors duration-200",
-            overlayActive ? "pointer-events-auto cursor-crosshair bg-primary/5" : "pointer-events-none"
-        )}
+        className="absolute inset-0 w-full h-full z-10 pointer-events-none"
       >
           <canvas 
             ref={overlayCanvasRef} 
-            className="w-full h-full" 
+            className={clsx(
+                "w-full h-full transition-colors duration-200",
+                overlayActive ? "pointer-events-auto cursor-crosshair bg-primary/5" : "pointer-events-none"
+            )}
             style={{ display: 'block' }}
           />
       </div>

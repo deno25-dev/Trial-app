@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 5173,      // Matches tauri.conf.json
         strictPort: true, // Forces Vite to fail if 5173 is occupied, preventing a 404 in Tauri
-        host: '0.0.0.0',
+        host: '127.0.0.1',
       },
       
       plugins: [react()],

@@ -19,6 +19,7 @@ interface ChartContextType {
   toggleGrid: () => void;
   toggleFavoritesBar: () => void;
   toggleFavorite: (timeframe: Timeframe) => void;
+  toggleFavoriteTool: (tool: DrawingToolType) => void;
   toggleTheme: () => void;
   toggleSearch: () => void;
   toggleDataExplorer: () => void;
@@ -68,6 +69,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     theme: 'dark',
     skin: 'default',
     favorites: [...FAVORITE_TIMEFRAMES],
+    favoriteTools: [],
     tabs: [{ id: '1', symbol: DEFAULT_SYMBOL, interval: DEFAULT_TIMEFRAME }],
     activeTabId: '1',
     replay: {
@@ -198,6 +200,19 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             newFavs = [...prev.favorites, tf];
         }
         return { ...prev, favorites: newFavs };
+    });
+  };
+
+  const toggleFavoriteTool = (tool: DrawingToolType) => {
+    setState(prev => {
+        const isFav = prev.favoriteTools.includes(tool);
+        let newFavs;
+        if (isFav) {
+            newFavs = prev.favoriteTools.filter(f => f !== tool);
+        } else {
+            newFavs = [...prev.favoriteTools, tool];
+        }
+        return { ...prev, favoriteTools: newFavs };
     });
   };
 
@@ -346,6 +361,7 @@ export const ChartProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toggleGrid, 
         toggleFavoritesBar, 
         toggleFavorite,
+        toggleFavoriteTool,
         toggleTheme, 
         toggleSearch,
         toggleDataExplorer,
