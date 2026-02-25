@@ -210,7 +210,7 @@ export const FinancialChart: React.FC = () => {
          transientDrawingsRef.current = transientDrawingsRef.current.filter(d => !persistedIds.has(d.id));
          trendlinePrimitiveRef.current.setTransientDrawings(transientDrawingsRef.current);
          
-         trendlinePrimitiveRef.current.requestUpdate();
+         trendlinePrimitiveRef.current._requestUpdate();
      }
   }, [drawings]);
 
@@ -356,7 +356,7 @@ export const FinancialChart: React.FC = () => {
         wickDownColor: currentTheme.wickDown,
     });
     
-    trendlinePrimitiveRef.current?.requestUpdate();
+    trendlinePrimitiveRef.current?._requestUpdate();
 
   }, [currentTheme, state.showGrid, state.priceScaleMode, state.isAutoScale, state.isInverted]);
 
@@ -790,7 +790,7 @@ export const FinancialChart: React.FC = () => {
       const last = chartData[chartData.length - 1];
       latestDataRef.current = { candle: last, vol: last.volume };
       updateLegendWithLatest();
-      trendlinePrimitiveRef.current?.requestUpdate();
+      trendlinePrimitiveRef.current?._requestUpdate();
 
       const perf = performance.now() - start;
       if (perf > 16) Telemetry.warn('Performance', 'Chart Render Dropped Frame', { duration: `${perf.toFixed(2)}ms` });
@@ -836,26 +836,51 @@ export const FinancialChart: React.FC = () => {
       if (current) saveDrawing({ ...current, properties: { ...current.properties, ...updates } });
   };
 
-  const handleDrawingDelete = () => {
-      if (!selectedDrawingId) return;
+  const handleDrawingDelete = (id?: string) => {
+      const targetId = id || selectedDrawingId;
+      if (!targetId) return;
+
+      console.log('DELETING ID:', targetId);
       
-      // Surgical Wipe from Primitive first (Visual)
+      // MANDATE 1.9.4: ZOMBIE PREVENTION
+      setLocalDrawings(prev => prev.filter(d => d.id !== targetId));
+
+      // Surgical Wipe from Primitive first (Visual & Hit-Test)
       if (trendlinePrimitiveRef.current) {
-          trendlinePrimitiveRef.current.removeDrawing(selectedDrawingId);
+          trendlinePrimitiveRef.current.removeDrawing(targetId);
           trendlinePrimitiveRef.current.setActiveInteractionId(null);
           trendlinePrimitiveRef.current.updateTempDrawing(null);
       }
+      
+      // MANDATE 1.6: Clear the transient overlay if a brush was being deleted
+      if (overlayCanvasRef.current) {
+          const ctx = overlayCanvasRef.current.getContext('2d');
+          ctx?.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
+      }
 
-      // Persistence Delete
-      deleteDrawing(selectedDrawingId);
+      // Clear selection state immediately to close toolbar
       setSelectedDrawingId(null);
+
+      // Persistence Delete (Backend)
+      deleteDrawing(targetId);
   };
 
   const handleClearAll = () => {
       clearAllDrawings();
-      trendlinePrimitiveRef.current?.setDrawings([]);
-      trendlinePrimitiveRef.current?.requestUpdate(); // Force visual wipe
+      
+      // MANDATE 1.4 / 0.17: Synchronous Hard Reset
+      if (trendlinePrimitiveRef.current) {
+          trendlinePrimitiveRef.current.hardReset();
+      }
+      
+      // Kill Overlay Canvas
+      if (overlayCanvasRef.current) {
+          const ctx = overlayCanvasRef.current.getContext('2d');
+          ctx?.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
+      }
+
       setSelectedDrawingId(null);
+      setLocalDrawings([]);
   };
 
   return (
@@ -865,7 +890,11 @@ export const FinancialChart: React.FC = () => {
     >
       <div ref={chartContainerRef} className="w-full h-full chart-container" />
       <div id="drawing-canvas-layer" className="absolute inset-0 w-full h-full z-10 pointer-events-none">
-          <canvas ref={overlayCanvasRef} className="w-full h-full" />
+          <canvas 
+            ref={overlayCanvasRef} 
+            className="w-full h-full pointer-events-none" 
+            style={{ display: 'block' }}
+          />
       </div>
 
       {selectedDrawing && <DrawingToolbar drawing={selectedDrawing} onUpdate={handleDrawingUpdate} onDelete={handleDrawingDelete} onEdit={handleTextEditStart} />}

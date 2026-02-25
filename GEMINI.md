@@ -31,6 +31,9 @@ The project adheres to specific architectural and functional mandates:
 - **1.6:** Absolute interaction lock and overlay architecture for drawing phases.
 - **0.22.1:** Replay system ensures time-scale range shifting is managed during playback.
 - **0.5.1:** Attribution for the charting library is hidden in the UI.
+- **1.9.4:** **Race Condition Prevention (Bulk Delete):** To avoid IPC race conditions, "Clear All" operations must utilize atomic bulk delete commands (`plugin:db|clear_drawings`) rather than iterating through individual IDs. State must be cleared optimistically and reverted only on verified backend failure.
+- **1.1.2:** **Sidebar Accessibility & Portal Visibility:** The left sidebar must implement vertical scrolling to maintain access to all tools. Sub-menus (Pop-ups) and tooltips must be rendered via **React Portals** to prevent clipping by sidebar `overflow` boundaries.
+- **1.4.1:** **Individual Drawing Selection:** Selection state must be surgically managed to ensure the "Drawing Toolbar" and "Object Tree" remain synchronized without triggering full chart re-renders.
 
 ## Building and Running
 
@@ -66,3 +69,4 @@ The project adheres to specific architectural and functional mandates:
 - **Telemetry:** Use `Telemetry` utility for logging and performance monitoring.
 
 Detailed project logic and 'Red Pill' philosophy are defined in /docs/SOURCE_OF_TRUTH.md.
+

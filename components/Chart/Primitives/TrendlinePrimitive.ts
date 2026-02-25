@@ -96,33 +96,10 @@ function isPointInPolygon(point: {x: number, y: number}, vs: {x: number, y: numb
 }
 
 class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
-    private _drawings: Drawing[];
-    private _transientDrawings: Drawing[];
-    private _tempDrawing: Drawing | null;
-    private _data: OhlcData[];
-    private _timeScale: any;
-    private _series: ISeriesApi<any>;
-    private _textBoundsCache: Map<string, { x: number, y: number, w: number, h: number }>;
-    private _activeInteractionId: string | null;
+    private _source: TrendlinePrimitive;
 
-    constructor(
-        drawings: Drawing[], 
-        transientDrawings: Drawing[],
-        tempDrawing: Drawing | null, 
-        data: OhlcData[],
-        timeScale: any, 
-        series: ISeriesApi<any>,
-        textBoundsCache: Map<string, { x: number, y: number, w: number, h: number }>,
-        activeInteractionId: string | null
-    ) {
-        this._drawings = drawings;
-        this._transientDrawings = transientDrawings;
-        this._tempDrawing = tempDrawing;
-        this._data = data;
-        this._timeScale = timeScale;
-        this._series = series;
-        this._textBoundsCache = textBoundsCache;
-        this._activeInteractionId = activeInteractionId;
+    constructor(source: TrendlinePrimitive) {
+        this._source = source;
     }
 
     draw(target: any) {
@@ -132,72 +109,75 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
     }
 
     private _drawImpl(ctx: CanvasRenderingContext2D, width: number, height: number) {
-        if (!ctx || !this._timeScale || !this._series) return;
+        if (!ctx || !this._source.chart || !this._source.series) return;
         
+        const timeScale = this._source.chart.timeScale();
+        const series = this._source.series;
+
+        // AGGRESSIVE PURGE: If no drawings exist, clear the context immediately and return.
+        const drawingsToRender = [...this._source.drawings, ...this._source._transientDrawings];
+        
+        // Ensure we clear the entire viewport to kill "Ghost" artifacts
+        ctx.clearRect(0, 0, width, height);
+        
+        if (drawingsToRender.length === 0 && !this._source._tempDrawing) {
+            return;
+        }
+
         ctx.save();
 
-        // Combine persisted and transient drawings for zero-flicker rendering
-        const drawingsToRender = [...this._drawings, ...this._transientDrawings];
-        
         const renderDrawing = (d: Drawing, isTemp: boolean) => {
-            // Guard: Atomic Object Purge - Fix Partial Deletions
-            // If the object is missing points, skip it entirely.
             if (!d.points || d.points.length === 0) return;
             
-            // Additional guard for shapes that require at least 2 points
             if (['trendline', 'ray', 'arrow_line', 'brush', 'rectangle', 'triangle', 'rotated_rectangle'].includes(d.type)) {
                 if (d.points.length < 2) return;
             }
 
             switch(d.type) {
-                case 'text': this._drawText(ctx, d, isTemp); break;
-                case 'brush': this._drawBrush(ctx, d, isTemp); break;
-                case 'rectangle': this._drawRectangle(ctx, d, isTemp); break;
-                case 'triangle': this._drawTriangle(ctx, d, isTemp); break;
-                case 'rotated_rectangle': this._drawRotatedRectangle(ctx, d, isTemp); break;
-                case 'horizontal_line': this._drawHorizontalLine(ctx, d, isTemp, width); break;
-                case 'vertical_line': this._drawVerticalLine(ctx, d, isTemp, height); break;
-                case 'horizontal_ray': this._drawHorizontalRay(ctx, d, isTemp, width); break;
-                case 'arrow_line': this._drawArrowLine(ctx, d, isTemp); break;
-                case 'trendline': 
-                case 'ray':
-                default: this._drawDrawing(ctx, d, isTemp); break;
+                case 'text': this._drawText(ctx, d, isTemp, timeScale, series); break;
+                case 'brush': this._drawBrush(ctx, d, isTemp, timeScale, series); break;
+                case 'rectangle': this._drawRectangle(ctx, d, isTemp, timeScale, series); break;
+                case 'triangle': this._drawTriangle(ctx, d, isTemp, timeScale, series); break;
+                case 'rotated_rectangle': this._drawRotatedRectangle(ctx, d, isTemp, timeScale, series); break;
+                case 'horizontal_line': this._drawHorizontalLine(ctx, d, isTemp, width, timeScale, series); break;
+                case 'vertical_line': this._drawVerticalLine(ctx, d, isTemp, height, timeScale, series); break;
+                case 'horizontal_ray': this._drawHorizontalRay(ctx, d, isTemp, width, timeScale, series); break;
+                case 'arrow_line': this._drawArrowLine(ctx, d, isTemp, timeScale, series); break;
+                default: this._drawDrawing(ctx, d, isTemp, timeScale, series); break;
             }
         };
 
         drawingsToRender.forEach(d => {
-            // HIDE-ON-DRAG: If this drawing is currently being interacted with (moved/resized),
-            // skip rendering the "static" version. The _tempDrawing (passed as true) will take its place.
-            if (d.id === this._activeInteractionId) return;
+            if (d.id === this._source._activeInteractionId) return;
             renderDrawing(d, false);
         });
 
-        if (this._tempDrawing) renderDrawing(this._tempDrawing, true);
+        if (this._source._tempDrawing) renderDrawing(this._source._tempDrawing, true);
 
         ctx.restore();
     }
 
-    private _resolveX(time: number): number | null {
-        const logicalIndex = getLogicalIndexForTime(this._data, time);
+    private _resolveX(time: number, timeScale: any): number | null {
+        const logicalIndex = getLogicalIndexForTime(this._source.data, time);
         if (logicalIndex !== null) {
-            return this._timeScale.logicalToCoordinate(logicalIndex as Logical);
+            return timeScale.logicalToCoordinate(logicalIndex as Logical);
         }
         return null;
     }
 
-    private _getCoords(points: Point[]): ({x: number, y: number} | null)[] {
+    private _getCoords(points: Point[], timeScale: any, series: any): ({x: number, y: number} | null)[] {
         return points.map(p => {
-            const x = this._resolveX(p.time);
-            const y = this._series.priceToCoordinate(p.price);
+            const x = this._resolveX(p.time, timeScale);
+            const y = series.priceToCoordinate(p.price);
             if (x === null || y === null) return null;
             return { x, y };
         });
     }
 
-    private _drawHorizontalLine(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, width: number) {
+    private _drawHorizontalLine(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, width: number, timeScale: any, series: any) {
         if (d.points.length < 1) return;
         const p = d.points[0];
-        const y = this._series.priceToCoordinate(p.price);
+        const y = series.priceToCoordinate(p.price);
         if (y === null) return;
 
         ctx.beginPath();
@@ -213,16 +193,16 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         ctx.setLineDash([]);
 
         if (d.selected || isTemp) {
-             const x = this._resolveX(p.time);
+             const x = this._resolveX(p.time, timeScale);
              if (x !== null) this._drawAnchor(ctx, x, y, d.selected);
         }
     }
 
-    private _drawHorizontalRay(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, width: number) {
+    private _drawHorizontalRay(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, width: number, timeScale: any, series: any) {
         if (d.points.length < 1) return;
         const p = d.points[0];
-        const x = this._resolveX(p.time);
-        const y = this._series.priceToCoordinate(p.price);
+        const x = this._resolveX(p.time, timeScale);
+        const y = series.priceToCoordinate(p.price);
 
         if (x === null || y === null) return;
 
@@ -243,10 +223,10 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         }
     }
 
-    private _drawVerticalLine(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, height: number) {
+    private _drawVerticalLine(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, height: number, timeScale: any, series: any) {
         if (d.points.length < 1) return;
         const p = d.points[0];
-        const x = this._resolveX(p.time);
+        const x = this._resolveX(p.time, timeScale);
         if (x === null) return;
 
         ctx.beginPath();
@@ -262,21 +242,21 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         ctx.setLineDash([]);
 
         if (d.selected || isTemp) {
-             const y = this._series.priceToCoordinate(p.price);
+             const y = series.priceToCoordinate(p.price);
              if (y !== null) this._drawAnchor(ctx, x, y, d.selected);
         }
     }
 
-    private _drawArrowLine(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean) {
+    private _drawArrowLine(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, timeScale: any, series: any) {
         if (d.points.length < 2) return;
         
         const p1 = d.points[0];
         const p2 = d.points[1];
 
-        const x1 = this._resolveX(p1.time);
-        const y1 = this._series.priceToCoordinate(p1.price);
-        const x2 = this._resolveX(p2.time);
-        const y2 = this._series.priceToCoordinate(p2.price);
+        const x1 = this._resolveX(p1.time, timeScale);
+        const y1 = series.priceToCoordinate(p1.price);
+        const x2 = this._resolveX(p2.time, timeScale);
+        const y2 = series.priceToCoordinate(p2.price);
 
         if (x1 === null || y1 === null || x2 === null || y2 === null) return;
 
@@ -311,8 +291,8 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         }
     }
 
-    private _drawRectangle(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean) {
-        const coords = this._getCoords(d.points);
+    private _drawRectangle(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, timeScale: any, series: any) {
+        const coords = this._getCoords(d.points, timeScale, series);
         if (coords.length < 2 || !coords[0] || !coords[1]) return;
         const [c1, c2] = coords;
 
@@ -344,8 +324,8 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         }
     }
 
-    private _drawTriangle(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean) {
-        const coords = this._getCoords(d.points);
+    private _drawTriangle(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, timeScale: any, series: any) {
+        const coords = this._getCoords(d.points, timeScale, series);
         if (coords.length < 3 || coords.some(c => c === null)) return;
         
         ctx.beginPath();
@@ -369,8 +349,8 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         }
     }
 
-    private _drawRotatedRectangle(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean) {
-        const coords = this._getCoords(d.points);
+    private _drawRotatedRectangle(ctx: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, timeScale: any, series: any) {
+        const coords = this._getCoords(d.points, timeScale, series);
         if (coords.length < 3 || coords.some(c => c === null)) return;
         
         const [p1, p2, p3] = coords as {x: number, y: number}[];
@@ -413,12 +393,12 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         }
     }
 
-    private _drawText(target: CanvasRenderingContext2D, d: Drawing, isTemp: boolean = false) {
+    private _drawText(target: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, timeScale: any, series: any) {
         if (d.points.length === 0) return;
         
         const p1 = d.points[0];
-        const x = this._resolveX(p1.time);
-        const y = this._series.priceToCoordinate(p1.price);
+        const x = this._resolveX(p1.time, timeScale);
+        const y = series.priceToCoordinate(p1.price);
 
         if (x === null || y === null) return;
 
@@ -432,7 +412,7 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         const h = fontSize; 
 
         if (d.id) {
-            this._textBoundsCache.set(d.id, { x, y: y - h, w, h });
+            this._source._textBoundsCache.set(d.id, { x, y: y - h, w, h });
         }
 
         if (d.selected || isTemp) {
@@ -463,7 +443,7 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         }
     }
 
-    private _drawBrush(target: CanvasRenderingContext2D, d: Drawing, isTemp: boolean = false) {
+    private _drawBrush(target: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, timeScale: any, series: any) {
         if (d.points.length < 2) return;
 
         target.beginPath();
@@ -475,8 +455,8 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         let started = false;
 
         for (const point of d.points) {
-            const x = this._resolveX(point.time);
-            const y = this._series.priceToCoordinate(point.price);
+            const x = this._resolveX(point.time, timeScale);
+            const y = series.priceToCoordinate(point.price);
 
             if (x !== null && y !== null) {
                 if (!started) {
@@ -502,16 +482,16 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
         }
     }
 
-    private _drawDrawing(target: CanvasRenderingContext2D, d: Drawing, isTemp: boolean = false) {
+    private _drawDrawing(target: CanvasRenderingContext2D, d: Drawing, isTemp: boolean, timeScale: any, series: any) {
         if (d.points.length < 2) return;
         
         const p1 = d.points[0];
         const p2 = d.points[1];
 
-        const x1 = this._resolveX(p1.time);
-        const y1 = this._series.priceToCoordinate(p1.price);
-        const x2 = this._resolveX(p2.time);
-        const y2 = this._series.priceToCoordinate(p2.price);
+        const x1 = this._resolveX(p1.time, timeScale);
+        const y1 = series.priceToCoordinate(p1.price);
+        const x2 = this._resolveX(p2.time, timeScale);
+        const y2 = series.priceToCoordinate(p2.price);
 
         if (x1 === null || y1 === null || x2 === null || y2 === null) return;
 
@@ -562,6 +542,7 @@ class TrendlinePaneRenderer implements IPrimitivePaneRenderer {
 
 class TrendlinePaneView implements IPrimitivePaneView {
     private _source: TrendlinePrimitive;
+    private _renderer: TrendlinePaneRenderer | null = null;
 
     constructor(source: TrendlinePrimitive) {
         this._source = source;
@@ -571,17 +552,15 @@ class TrendlinePaneView implements IPrimitivePaneView {
         return 'top';
     }
 
+    public update() {
+        this._renderer = null;
+    }
+
     renderer(): IPrimitivePaneRenderer {
-        return new TrendlinePaneRenderer(
-            this._source.drawings,
-            this._source._transientDrawings,
-            this._source._tempDrawing,
-            this._source.data, 
-            this._source.chart?.timeScale() || null,
-            this._source.series,
-            this._source._textBoundsCache,
-            this._source._activeInteractionId
-        );
+        if (!this._renderer) {
+            this._renderer = new TrendlinePaneRenderer(this._source);
+        }
+        return this._renderer;
     }
 }
 
@@ -596,6 +575,7 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     _dirty: boolean = true;
     _textBoundsCache: Map<string, { x: number, y: number, w: number, h: number }> = new Map();
     _activeInteractionId: string | null = null;
+    _rendererData: any = null;
 
     constructor() {
         this._paneViews = [new TrendlinePaneView(this)];
@@ -604,7 +584,7 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     attached({ chart, series, requestUpdate }: any) {
         this._chart = chart;
         this._series = series;
-        this.requestUpdate = () => {
+        this._requestUpdate = () => {
              this._dirty = true;
              requestUpdate();
         };
@@ -622,44 +602,84 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     public setData(data: OhlcData[]) {
         this._data = data;
         this._dirty = true;
-        this.requestUpdate();
+        this._rendererData = null;
+        this._requestUpdate();
+        this._paneViews.forEach(pv => pv.update());
     }
 
     public setDrawings(drawings: Drawing[]) {
-        this._drawings = drawings;
-        const ids = new Set(drawings.map(d => d.id));
+        this._drawings = [...drawings]; // Explicit overwrite with new array
+        const ids = new Set(this._drawings.map(d => d.id));
         for (const id of this._textBoundsCache.keys()) {
             if (!ids.has(id)) this._textBoundsCache.delete(id);
         }
         this._dirty = true;
-        this.requestUpdate();
+        this._rendererData = null;
+        this._requestUpdate();
+        this._paneViews.forEach(pv => pv.update());
     }
     
     public setTransientDrawings(drawings: Drawing[]) {
         this._transientDrawings = drawings;
         this._dirty = true;
-        this.requestUpdate();
+        this._rendererData = null;
+        this._requestUpdate();
+        this._paneViews.forEach(pv => pv.update());
     }
     
     public removeDrawing(id: string) {
-        console.log(`[Primitive] removeDrawing: ${id}`);
+        console.log("INTERNAL_WIPE_SUCCESS", id);
         this._drawings = this._drawings.filter(d => d.id !== id);
         this._transientDrawings = this._transientDrawings.filter(d => d.id !== id);
         this._textBoundsCache.delete(id);
         this._dirty = true;
-        this.requestUpdate();
+        this._rendererData = null;
+
+        // MANDATE 1.9.4: Atomic Wipe & Repaint
+        if (this._chart) {
+            // Force the engine to pulse its internal crosshair and timescale cache
+            this._chart.applyOptions({});
+        }
+
+        this._requestUpdate();
+        this._paneViews.forEach(pv => pv.update());
+    }
+
+    /**
+     * MANDATE 1.4 / 0.17: Synchronous State Wipe
+     * Forcefully clears all drawing state and cancels any pending renders.
+     */
+    public hardReset() {
+        this._drawings = [];
+        this._transientDrawings = [];
+        this._tempDrawing = null;
+        this._textBoundsCache.clear();
+        this._activeInteractionId = null;
+        this._dirty = true;
+        this._rendererData = null;
+        
+        if (this._chart) {
+            this._chart.applyOptions({});
+        }
+        
+        this._requestUpdate();
+        this._paneViews.forEach(pv => pv.update());
     }
     
     public updateTempDrawing(drawing: Drawing | null) {
         this._tempDrawing = drawing;
         this._dirty = true;
-        this.requestUpdate();
+        this._rendererData = null;
+        this._requestUpdate();
+        this._paneViews.forEach(pv => pv.update());
     }
 
     public setActiveInteractionId(id: string | null) {
         this._activeInteractionId = id;
         this._dirty = true;
-        this.requestUpdate();
+        this._rendererData = null;
+        this._requestUpdate();
+        this._paneViews.forEach(pv => pv.update());
     }
 
     public get drawings() { return this._drawings; }
@@ -667,13 +687,15 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     public get chart() { return this._chart; }
     public get series() { return this._series; }
 
-    public requestUpdate = () => {};
+    _requestUpdate = () => {};
 
     paneViews() { return this._paneViews; }
     
     // --- HIT TESTING (Main Thread) ---
     hitTest(x: number, y: number): (PrimitiveHoveredItem & { drawing: Drawing, anchor?: number }) | null {
+        // ZOMBIE PREVENTION: If no drawings exist, kill hit-testing immediately
         if (!this._chart || !this._series || this._data.length === 0) return null;
+        if (this._drawings.length === 0 && this._transientDrawings.length === 0 && !this._tempDrawing) return null;
         
         const threshold = 6; // Strict threshold for better precision
         

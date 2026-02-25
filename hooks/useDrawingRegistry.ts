@@ -45,7 +45,7 @@ export const useDrawingRegistry = (sourceId: string) => {
     } catch (e) {
       Telemetry.error('Persistence', 'Save failed', { error: e });
     }
-  }, [fetchDrawings]);
+  }, []); // Removed unused dependency
 
   // 3. Delete with Sync
   const deleteDrawing = useCallback(async (id: string) => {
@@ -57,7 +57,7 @@ export const useDrawingRegistry = (sourceId: string) => {
     } catch (e) {
       Telemetry.error('Persistence', 'Delete failed', { error: e });
     }
-  }, [fetchDrawings]);
+  }, []); // Removed unused dependency
 
   // 4. Clear All
   const clearAllDrawings = useCallback(async () => {

@@ -6,7 +6,7 @@ import clsx from 'clsx';
 interface DrawingToolbarProps {
     drawing: Drawing;
     onUpdate: (updates: Partial<Drawing['properties']>) => void;
-    onDelete: () => void;
+    onDelete: (id: string) => void;
     onEdit: () => void;
 }
 
@@ -140,7 +140,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({ drawing, onUpdat
                 <button 
                     onClick={(e) => {
                         e.stopPropagation();
-                        onDelete();
+                        onDelete(drawing.id);
                     }}
                     className="p-1.5 text-muted hover:text-danger hover:bg-danger/10 rounded transition-colors"
                     title="Delete"
