@@ -48,6 +48,24 @@ export const useDrawingRegistry = (sourceId: string) => {
   const fetchDrawings = useCallback(async () => {
     if (!sourceId) return;
     try {
+      // MANDATE 0.17.2: Import & Destroy Logic (Fixing Zombies)
+      // Check for legacy JSON in Database/Drawings/
+      const legacyPath = `${sourceId}.json`;
+      const legacyData = await TauriService.readJson<Drawing[]>('Drawings', legacyPath);
+      
+      if (legacyData && legacyData.length > 0) {
+          Telemetry.info('Persistence', `Migrating legacy JSON for ${sourceId}`);
+          // Atomic Migration to SQLite (Diesel)
+          for (const d of legacyData) {
+              // Ensure normalized sourceId (Symbol only) is used
+              await TauriService.saveDrawing({ ...d, sourceId });
+          }
+          // Immediate Destruction of Legacy File (Mandate 0.11.4.A)
+          await TauriService.deleteJson('Drawings', legacyPath);
+          Telemetry.success('Persistence', `Migration complete. Legacy file ${legacyPath} purged.`);
+      }
+
+      // 2. Hydrate strictly from Relational SQLite (Mandate 0.13.2)
       const loaded = await TauriService.loadDrawings(sourceId);
       // Filter out orphaned/corrupt data if any
       const validDrawings = loaded.filter(d => d.points && d.points.length > 0);
@@ -55,7 +73,7 @@ export const useDrawingRegistry = (sourceId: string) => {
       // Clear history when switching symbols/intervals to prevent cross-contamination
       setPast([]);
       setFuture([]);
-      Telemetry.debug('Persistence', `Hydrated ${validDrawings.length} drawings from DB`, { sourceId });
+      Telemetry.debug('Persistence', `Hydrated ${validDrawings.length} drawings from SQLite`, { sourceId });
     } catch (e) {
       Telemetry.error('Persistence', 'Failed to hydrate drawings', { error: e });
     }

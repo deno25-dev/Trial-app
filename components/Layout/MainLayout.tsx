@@ -22,9 +22,44 @@ export const MainLayout: React.FC = () => {
   const [lastOpenHeight, setLastOpenHeight] = useState(256);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   
   // Use ChartContext for Data Explorer & Trade Panel State
   const { isDataExplorerOpen, isTradePanelOpen, state, chartRevision } = useChart();
+
+  // MANDATE 0.7.1 & 5.2: Hydration on Mount
+  useEffect(() => {
+    const hydrate = async () => {
+        try {
+            const saved = await TauriService.readJson<any>('Settings', 'ui_layout.json');
+            if (saved) {
+                setPanelHeight(saved.panelHeight ?? 256);
+                setLastOpenHeight(saved.lastOpenHeight ?? 256);
+                setIsCollapsed(saved.isCollapsed ?? false);
+            }
+        } catch (e) {
+            Telemetry.error('System', 'Failed to hydrate UI layout', { error: e });
+        } finally {
+            setIsHydrated(true);
+        }
+    };
+    hydrate();
+  }, []);
+
+  // MANDATE 0.7.1 & 5.2: Fire-and-Forget Persistence
+  useEffect(() => {
+    if (!isHydrated) return;
+    
+    const persist = async () => {
+        TauriService.saveAtomicJson('Settings', 'ui_layout.json', {
+            panelHeight,
+            lastOpenHeight,
+            isCollapsed
+        }).catch(e => Telemetry.error('Persistence', 'UI Layout Sync Failed', { error: e }));
+    };
+    
+    persist();
+  }, [panelHeight, lastOpenHeight, isCollapsed, isHydrated]);
 
   // Refs for Dragging
   const dragStartY = useRef(0);

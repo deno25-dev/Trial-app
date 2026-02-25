@@ -23,6 +23,36 @@ const formatVol = (vol: number) => {
     return vol.toFixed(0);
 };
 
+// MANDATE 5.3: Fractional Coordinate Mapping (Fixing the Jumping Dialogue)
+// Converts logical index (fractional) to a high-precision timestamp
+function getTimeForLogical(logical: number, data: OhlcData[]): number {
+    if (data.length === 0) return 0;
+    
+    const lo = Math.floor(logical);
+    const hi = Math.ceil(logical);
+    const frac = logical - lo;
+
+    if (lo < 0) {
+        const first = data[0].time;
+        const second = data[1]?.time || (first + 60);
+        const diff = second - first;
+        return first + (logical * diff);
+    }
+    
+    if (hi >= data.length) {
+        const last = data[data.length - 1].time;
+        const prev = data[data.length - 2]?.time || (last - 60);
+        const diff = last - prev;
+        return last + ((logical - (data.length - 1)) * diff);
+    }
+
+    if (lo === hi) return data[lo].time;
+
+    const t1 = data[lo].time;
+    const t2 = data[hi].time;
+    return t1 + (t2 - t1) * frac;
+}
+
 // Binary Search Helper for Coordinate Mapping
 function getIndexForTime(data: OhlcData[], time: number): number {
     let lo = 0;
@@ -85,8 +115,12 @@ export const FinancialChart: React.FC = () => {
   const replayFrameRef = useRef<number>(0);
   const lastReplayTimeRef = useRef<number>(0);
 
+  // MANDATE 0.16.1: Fixing the Invisible Wall
+  const [overlayActive, setOverlayActive] = useState(false);
+
   // --- PERSISTENCE HOOK (Mandate 1.4 & 0.17) ---
-  const sourceId = `${state.symbol}_${state.interval}`;
+  // Mandate 0.17: Strip timeframe suffixes to ensure drawing continuity across intervals
+  const sourceId = state.symbol; 
   const { 
     drawings, 
     saveDrawing, 
@@ -508,7 +542,7 @@ export const FinancialChart: React.FC = () => {
                 // Drop Visual Marker (Vertical Line)
                 const marker: Drawing = {
                     id: crypto.randomUUID(),
-                    sourceId: `${activeSymbolRef.current}_${activeIntervalRef.current}`,
+                    sourceId: activeSymbolRef.current,
                     type: 'vertical_line',
                     points: [finalPoint],
                     properties: { color: '#f59e0b', lineWidth: 2, lineStyle: 1 }, // Amber Dashed
@@ -581,16 +615,22 @@ export const FinancialChart: React.FC = () => {
             return;
         }
 
+        // MANDATE 0.16.1: Active Drawing state - Enable Overlay
+        setOverlayActive(true);
+
         if (tool === 'text') {
             e.preventDefault(); e.stopPropagation();
-            setTextModal({ isOpen: true, x: e.clientX, y: e.clientY, time: finalPoint.time, price: finalPoint.price, initialText: '' });
+            // MANDATE 5.3: Fractional Mapping for Text Dialogue
+            const logical = chartApiRef.current?.timeScale().coordinateToLogical(e.clientX - wrapper.getBoundingClientRect().left) || 0;
+            const preciseTime = getTimeForLogical(logical, fullDataRef.current);
+            setTextModal({ isOpen: true, x: e.clientX, y: e.clientY, time: preciseTime, price: finalPoint.price, initialText: '' });
             return;
         }
 
         if (tool === 'brush') {
             e.preventDefault(); e.stopPropagation();
             currentBrushPathRef.current = [{ x: point.x, y: point.y }];
-            const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: `${activeSymbolRef.current}_${activeIntervalRef.current}`, type: 'brush', points: [], properties: { color: currentTheme.crosshair, lineWidth: 2, lineStyle: 0 }, selected: true };
+            const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: activeSymbolRef.current, type: 'brush', points: [], properties: { color: currentTheme.crosshair, lineWidth: 2, lineStyle: 0 }, selected: true };
             currentDrawingRef.current = newDrawing;
             drawingStateRef.current = { phase: 'drawing', activeDrawingId: newDrawing.id, dragAnchor: null };
             return;
@@ -598,10 +638,11 @@ export const FinancialChart: React.FC = () => {
 
         if (tool === 'horizontal_line' || tool === 'vertical_line' || tool === 'horizontal_ray') {
             e.preventDefault(); e.stopPropagation();
-            const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: `${activeSymbolRef.current}_${activeIntervalRef.current}`, type: tool as any, points: [finalPoint], properties: { color: currentTheme.crosshair, lineWidth: 2, lineStyle: 0 }, selected: true };
+            const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: activeSymbolRef.current, type: tool as any, points: [finalPoint], properties: { color: currentTheme.crosshair, lineWidth: 2, lineStyle: 0 }, selected: true };
             saveDrawing(newDrawing);
             setSelectedDrawingId(newDrawing.id);
             setTool('cursor');
+            setOverlayActive(false);
             return;
         }
 
@@ -609,7 +650,7 @@ export const FinancialChart: React.FC = () => {
         let initialPoints = [finalPoint, finalPoint];
         if (tool === 'triangle' || tool === 'rotated_rectangle') initialPoints = [finalPoint, finalPoint, finalPoint];
 
-        const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: `${activeSymbolRef.current}_${activeIntervalRef.current}`, type: tool as any, points: initialPoints, properties: { color: currentTheme.crosshair, lineWidth: 2, lineStyle: 0, showBackground: ['rectangle', 'triangle', 'rotated_rectangle'].includes(tool as string), backgroundColor: currentTheme.crosshair + '33' }, selected: true };
+        const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: activeSymbolRef.current, type: tool as any, points: initialPoints, properties: { color: currentTheme.crosshair, lineWidth: 2, lineStyle: 0, showBackground: ['rectangle', 'triangle', 'rotated_rectangle'].includes(tool as string), backgroundColor: currentTheme.crosshair + '33' }, selected: true };
         currentDrawingRef.current = newDrawing;
         trendlinePrimitiveRef.current?.updateTempDrawing(newDrawing);
         drawingStateRef.current = { phase: 'drawing', activeDrawingId: newDrawing.id, dragAnchor: 1 };
@@ -655,7 +696,12 @@ export const FinancialChart: React.FC = () => {
             if (state.dragAnchor !== null) {
                 if (state.dragAnchor >= drawing.points.length) return;
                 const newPoints = [...drawing.points];
-                newPoints[state.dragAnchor] = finalPoint;
+                
+                // MANDATE 5.3: Fractional logical positioning during interaction
+                const logical = chartApiRef.current?.timeScale().coordinateToLogical(point.x) || 0;
+                const preciseTime = getTimeForLogical(logical, fullDataRef.current);
+                
+                newPoints[state.dragAnchor] = { ...finalPoint, time: preciseTime };
                 currentDrawingRef.current = { ...drawing, points: newPoints };
                 trendlinePrimitiveRef.current?.updateTempDrawing(currentDrawingRef.current);
             }
@@ -696,6 +742,8 @@ export const FinancialChart: React.FC = () => {
     };
 
     const handleMouseUp = () => {
+        setOverlayActive(false); // MANDATE 0.16.1: Disable overlay on release
+        
         if (!currentDrawingRef.current) {
             drawingStateRef.current = { phase: 'idle', activeDrawingId: null, dragAnchor: null, didMove: false };
             dragOriginRef.current = null;
@@ -712,7 +760,8 @@ export const FinancialChart: React.FC = () => {
             const series = seriesRef.current;
             if (timeScale && series && path.length > 1) {
                 const convertedPoints: Point[] = path.map(pt => {
-                    const time = timeScale.coordinateToTime(pt.x) as number;
+                    const logical = timeScale.coordinateToLogical(pt.x) || 0;
+                    const time = getTimeForLogical(logical, fullDataRef.current);
                     const price = series.coordinateToPrice(pt.y) as number;
                     return { time, price };
                 }).filter(p => p.time !== null && p.price !== null);
@@ -727,7 +776,7 @@ export const FinancialChart: React.FC = () => {
 
         if (state.phase === 'drawing') {
             if (d.type === 'triangle' || d.type === 'rotated_rectangle') {
-                if (state.dragAnchor === 1) { drawingStateRef.current = { ...state, dragAnchor: 2 }; return; }
+                if (state.dragAnchor === 1) { drawingStateRef.current = { ...state, dragAnchor: 2 }; setOverlayActive(true); return; }
             }
             commitDrawing(d);
             setTool('cursor');
@@ -761,6 +810,7 @@ export const FinancialChart: React.FC = () => {
         currentDrawingRef.current = null;
         drawingStateRef.current = { phase: 'idle', activeDrawingId: null, dragAnchor: null };
         dragOriginRef.current = null;
+        setOverlayActive(false);
     };
 
     wrapper.addEventListener('mousedown', handleMouseDown, { capture: true });
@@ -893,12 +943,14 @@ export const FinancialChart: React.FC = () => {
            });
       } else {
            if (!text.trim()) { setTextModal({ ...textModal, isOpen: false }); setTool('cursor'); return; }
-           const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: `${state.symbol}_${state.interval}`, type: 'text', points: [{ time: textModal.time, price: textModal.price }], properties: { color: currentTheme.text, lineWidth: 1, lineStyle: 0, text: text, fontSize: 14, showBackground: false }, selected: true };
+           // MANDATE 5.3: Use precise textModal.time already calculated during interaction
+           const newDrawing: Drawing = { id: crypto.randomUUID(), sourceId: activeSymbolRef.current, type: 'text', points: [{ time: textModal.time, price: textModal.price }], properties: { color: currentTheme.text, lineWidth: 1, lineStyle: 0, text: text, fontSize: 14, showBackground: false }, selected: true };
            saveDrawing(newDrawing);
            setSelectedDrawingId(newDrawing.id);
            setTool('cursor');
       }
       setTextModal({ ...textModal, isOpen: false });
+      setOverlayActive(false);
   };
 
   const selectedDrawing = useMemo(() => drawings.find(d => d.id === selectedDrawingId), [drawings, selectedDrawingId]);
@@ -991,10 +1043,17 @@ export const FinancialChart: React.FC = () => {
         className="w-full h-full relative group bg-background transition-colors duration-300 chart-wrapper"
     >
       <div ref={chartContainerRef} className="w-full h-full chart-container" />
-      <div id="drawing-canvas-layer" className="absolute inset-0 w-full h-full z-10 pointer-events-none">
+      {/* MANDATE 0.16.1: Interaction Overlay with Conditional Transparency */}
+      <div 
+        id="drawing-canvas-layer" 
+        className={clsx(
+            "absolute inset-0 w-full h-full z-10 transition-colors duration-200",
+            overlayActive ? "pointer-events-auto cursor-crosshair bg-primary/5" : "pointer-events-none"
+        )}
+      >
           <canvas 
             ref={overlayCanvasRef} 
-            className="w-full h-full pointer-events-none" 
+            className="w-full h-full" 
             style={{ display: 'block' }}
           />
       </div>

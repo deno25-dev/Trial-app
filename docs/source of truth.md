@@ -52,11 +52,10 @@ Default Preservation: The 'Midnight River' Theme is the primary app theme.
 
 0.7: Interactive Bottom Panel (Market Overview)
 This mandate defines the behavior and structural constraints of the bottom-docked panel, ensuring dynamic layout adjustment and responsive chart resizing.
-0.7.1: State & Transition Logic
-Visibility Management: The panel’s state (Open/Closed) is managed within MainLayout.tsx using a local useState hook.
-Dimensional Constraints: * Expanded: The panel maintains a maximum height of 256px (h-64).
-Collapsed: The panel minimizes to its header height of 40px (h-10).
-Motion: All height transitions utilize a smooth CSS transition (transition-all duration-300 ease-in-out) to provide a premium, desktop-native feel.
+0.7.1 & 5.2 Unified Panel Management (Fixing the Stuck Panel)
+UI-Led State: The panel’s open/closed status is a React-first state. The useState hook in MainLayout.tsx is the master.
+Asynchronous Persistence: When the state changes, the app triggers a "fire-and-forget" save to the SQLite database.
+Resync Guard: The app must NEVER wait for a database confirmation to toggle the UI. The database is only used for "Hydration" (remembering the state when you reopen the app tomorrow).
 0.7.2: Chart Interactivity & Responsiveness
 Dynamic Reflow: The FinancialChart.tsx component must utilize a ResizeObserver to detect shifts in the layout's flex container.
 Automatic Scaling: When the Market Overview panel expands or collapses, the chart must instantly trigger its internal resize() method to fill the newly available vertical space, ensuring no "dead zones" appear in the UI.
@@ -146,18 +145,11 @@ Diesel (Rust): Use this for Trades and the Object Tree. These are relational. If
 Atomic JSON Writes: For Layouts and Sticky Notes, we write to a .tmp file first, then rename it to the final .json in the /Database folder. This prevents "Partial Writes" (corruption) if the app crashes mid-save.
 TanStack Mutations: In React, we use useMutation with Optimistic Updates. The moment you move a Sticky Note, the UI updates. The "Success" or "Failure" of the file-write happens in the background.
 
-0.11.4.A Storage Structure & Hierarchy 
-·	Original Intent: Create a Database folder for app metadata.
-·	The Correction: The Database/ directory is hereby designated as System Metadata Only.
-·	Sub-folder Integrity: This directory shall contain StickyNotes/, Layouts/, Settings/, Trades/, and Orders/.
-·	*Scanner Exclusion*: Under NO circumstances shall the Asset Library Scanner or the Local Data Explorer enter the Database/ root or its sub-folders. This directory is "INVINCIBLE" to the charting data-stream.
-·	The Root: Upon initialization (or build), the app must ensure the existence of a /Database directory in the application's root directory.
-·	Automatic Sub-structuring: Every feature requiring persistence must own a named sub-folder within /Database.
-o	/Database/ObjectTree/: Stores JSON manifests of folders and groupings.
-o	/Database/Drawings/: Stores serialized drawing arrays keyed by symbol_interval.json.
-o	/Database/Settings/: Stores theme.json and user preferences.
-o	/Database/ChartSplit/: Stores layout configurations (Split 2x, 4x, etc.).
-·	Sync Trigger: Saving is Atomic. When a change occurs (e.g., a new folder is created in the Object Tree), the app serializes that specific module's state and overwrites the corresponding JSON file in the Database.
+0.11.4.A Storage Structure & Hierarchy (The Clean Slate)
+Legacy Deprecation: The /Database/Drawings/*.json structure is hereby designated as Legacy Import Only.
+The Single Truth: All drawing data is now strictly owned by the Relational SQLite Database.
+The Purge Rule: Upon a successful "Injection" (Mandate 0.17.2), the corresponding legacy JSON file must be deleted to prevent "Zombie" reappearances.
+Sub-folder Integrity: /Database/ remains for system-critical metadata, but drawings are moved to the SQLite drawings table.
 
 0.11.4.B The "Trade Ledger" Logic 
 Storage Strategy: In accordance with Mandate 0.15.2, all trade data is persisted in the central SQLite trades table.
@@ -219,12 +211,12 @@ To maintain technical analysis integrity, the application must strictly isolate 
 
 0.13.1 The "Durable Identity" System Definition: Every data source (CSV/TXT) must be assigned a unique source_id derived from a Metadata Fingerprint (a combined hash of the file’s original name, its creation timestamp, and its total byte size) rather than its absolute file path. Constraint: This source_id acts as the primary key for all persisted chart states. By using a fingerprint instead of a path, the application ensures that drawings and indicators remain "attached" to the data even if the file is moved between directories or external drives.
 
-0.13.2 Rust State Management (Backend)
-·	Storage: Chart states must be persisted exclusively via the Rust backend into the Database/ directory using the Relational SQLite Database.
-·	Relational Integrity: Individual drawing objects and object hierarchies must be stored in SQLite (via Diesel), while only fluid layout configurations are saved as Atomic JSON files.
-·	Commands:
-o	save_chart_state(source_id: String, state: JSON): Commits the current drawing array and layout configuration to the relational database.
-o	load_chart_state(source_id: String): Performs a coordinated fetch from both the SQLite database (for drawings/objects) and the JSON store (for layout settings) to ensure a complete and isolated hydration of the chart.
+0.13.2 Rust State Management (Unified Backend)
+Atomic Storage: All chart states (drawings, Fibonacci levels, etc.) must be persisted exclusively via the Rust backend into the Relational SQLite Database.
+No Hybrid Fetching: The load_chart_state command must fetch drawings only from SQLite. JSON is strictly reserved for "Transient Layouts" (e.g., window sizes).
+Commands:
+save_drawing(drawing: Drawing): Commits/Updates the relational table.
+delete_drawing(id: String): Executes a DELETE in SQLite and clears the primitive's cache in the same transaction.
 
 0.13.3 React Hydration & Isolation Logic
 The Switcher: Whenever a new file is loaded, the frontend must:
@@ -257,8 +249,9 @@ source_id: The Durable Metadata Fingerprint (Hash of initial name + creation dat
 execution_data: Price, quantity, and timestamp.
 metadata: Contextual flag (Standard Mode vs. Advanced Replay).
 
-0.15.2 Unified Persistence Logic Command: save_trade(trade: Trade) must commit exclusively to the Relational SQLite Database managed by the Rust backend. 
-Integrity Guarantee: We ABANDON the trades.json approach to ensure ACID compliance. All trade executions MUST be stored in a central trades table. This allows for complex SQL queries (e.g., "Find all trades for BTCUSDT taken in Advanced Replay mode") to execute in sub-millisecond time, which is impossible with flat JSON files as the dataset grows.
+0.15.2 Nuclear Integrity Guarantee
+Legacy Abandonment: Mandate the total abandonment of all trades.json or drawings.json files for active sessions.
+ACID Compliance: All deletions are atomic. If a "Delete" command is sent, the Rust backend must confirm the SQLite record is gone before the UI reflects the "Success" state. This prevents the "Undo-Resurrection" bug by ensuring the "photo" of the state is always fresh.
 
 0.15.3 Frontend Synchronization & Markers
 Initial Load: Upon asset selection, the UI must fetch historical trades and populate the Order History Panel.
@@ -268,11 +261,11 @@ State Updates: In Advanced Replay, the active trade's unrealized PnL must be upd
 0.16 High-Performance Brush & Overlay Architecture
 To ensure a professional, zero-lag drawing experience, the application must utilize a Decoupled Overlay Strategy for high-frequency input tools like the Brush or Highlighter.
 
-0.16.1 The "Transient Canvas" Layer
-Dual-Layer Rendering: The UI must maintain two separate visual layers:
-The Main Chart Layer: Handles the rendering of candles, grids, and established drawings.
-The Interaction Overlay: A dedicated, transparent <canvas> element positioned directly over the chart.
-Live Drawing: While the mouse is down, all brush coordinates must be drawn directly to the Interaction Overlay using the native Canvas 2D API. This process must bypass the React state and the charting library's internal rendering loop.
+0.16.1 The "Transient Canvas" Layer (Fixing the Invisible Wall)
+Dynamic Pointer-Events: To prevent the interaction overlay from "intercepting" clicks (as seen in your Playwright logs), the <canvas> overlay must utilize Conditional Transparency.
+Logic: * Default State: pointer-events: none. All clicks pass through to the chart and toolbar.
+Active Drawing State: When a tool (Brush, Line) is selected AND the mouse is down, the overlay switches to pointer-events: auto.
+Impact: This allows users to click "Delete" or "Select" buttons underneath the canvas without the canvas "stealing" the event.
 
 0.16.2 Memory-Efficient Coordinate Tracking
 Ref-Based Storage: During an active stroke, coordinates must be stored in a mutable Ref (currentStrokeRef) rather than React state.
@@ -283,16 +276,14 @@ State Deferral: The main application state and the Rust/Diesel Persistence Layer
 Tauri IPC Guarantee: Upon releasing the mouse, the final path is extracted and sent via a save_drawing command. The UI must maintain the object in a "Pending" state in the useDrawingRegistry until the Rust backend returns a success confirmation. 
 Persistence Target: In accordance with the Hybrid Persistence Model, the brush path must be saved as a relational blob in the SQLite database, indexed by the source_id fingerprint.
 
-0.17 Drawing Glue & Symbol Persistence 
-Logic: Drawings are keyed to the Asset/Symbol, not the timeframe or file.
-Requirement: The sourceId used for persistence must strip timeframe suffixes. A drawing created on a 1m chart must automatically be rendered when switching to a 5m, 1h, or Daily chart for the same asset.
+0.17 Drawing Glue & Symbol Persistence
+SourceID Normalization: The sourceId for persistence MUST be Symbol only. Timeframe suffixes (1m, 5m) are stripped.
+Global Visibility: A drawing is a property of the asset. Deleting a drawing on one timeframe must result in an immediate INTERNAL_WIPE across all timeframe views for that symbol.
 
-0.17.2: Drawing-to-Data Linkage.
-1.	Trigger: When a user selects a CSV file via the File Explorer, extract the filename or symbol to use as a unique key.
-2.	Lookup: Before rendering the chart, the app must check Database/Drawings/[symbol].json.
-3.	Injection: If a matching JSON file exists, parse the drawings and inject them into the useDrawingRegistry before the FinancialChart completes its initial mount.
-4.	Safety Interlock Ensure the filePath of the CSV is passed to the renderer as readOnlySource. Verify that the save function in useSymbolPersistence.ts is explicitly pointed at the Database directory and not the readOnlySource directory.
-5.	Visual Confirmation: If data is successfully loaded from the database, show a brief 'Drawings Loaded' toast or status indicator in the Floating Top Bar."
+0.17.2: The "Import & Destroy" Logic (Fixing Zombies)
+Trigger: On symbol change, check for legacy Database/Drawings/[symbol].json.
+Migration: If found, parse the JSON, write records to SQLite, then immediately delete the JSON file.
+Hydration: useDrawingRegistry must hydrate strictly from the SQLite table using the normalized symbol key.
 
 0.18 Session Memory & Hydration 
 Logic: The application must maintain a "Session State" that survives asset changes and reloads.
@@ -745,14 +736,9 @@ FLOATING BOTTOM PANEL
 ·	Visual Correlation: Selecting an order triggers a Temporal Sync. The engine uses a Polars LazyFrame search to locate the exact Unix Timestamp of the execution and scrolls the chart to that coordinate.
 ·	Constraint: Trade executions are protected records. The useDrawingRegistry must filter and exclude objects with type: 'TRADE_EXECUTION' from the undo/redo history stacks to prevent ledger deletion.
 
-5.2 Panel Management (Docking & Visibility)
-·	Architecture: Implemented as an "Accordion" component.
-·	Persistence: The open/closed state is saved to the Relational SQLite Database.
-·	Bottom Panel Resizability:
-o	Logic: Uses a horizontal drag-handle with an invisible "overlay mask" to prevent cursor-sticking.
-o	Thread Safety: Resizing must trigger the chart's resize() method using a Resize Observer debounced to protect the main thread.
+See 0.7.1 & 5.2 combined
 
-5.3 The Inversion Engine:
-·	Core Logic: Toggles invertScale in priceScale options.
-·	Coordinate Synchronization: All custom overlays (Sticky Notes, Drawings) must stay bound to their Unix Price Values, not screen positions.
-·	Visual State: Labels remain legible, but the numerical order is reversed
+5.3 High-Precision Inversion Engine (Fixing the Jumping Dialogue)
+Hybrid Anchoring: To prevent text dialogues from "moving" when "Apply" is clicked, the system must use Fractional Logical Indexes.
+The Fix: Instead of snapping the dialogue to the nearest integer candle (which causes a "jump"), the anchor point must preserve its exact sub-candle position during the screen-to-price conversion.
+Visual State: The dialogue remains in "Screen Space" during interaction and only "Bakes" into "Price Space" once the Apply button is clicked, using the high-precision coordinate.
